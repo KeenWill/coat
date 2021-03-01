@@ -1,0 +1,20 @@
+struct A { int x }
+struct B { int x ; int y }
+struct C { int x ; int y ; int z }
+
+/*  C <: B     B <: B     */
+/* ---------------------- */
+/* (B) -> B  <:  (C) -> B */
+B f(B b) {
+  return b;
+}
+
+B g((C) -> B f) {
+  var c = new C {x = 1; y = 2; z = 3};
+  return f(c);
+}
+
+int program(string[] args) {
+  var b = g(f);
+  return b.y;
+}

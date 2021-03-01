@@ -1,0 +1,77 @@
+struct Heap {
+  int[] values;
+  int arr_length;
+  int size;
+  (Heap, int) -> void insert;
+  (Heap) -> int extract_min;
+  (Heap) -> int peek
+}
+
+void swim (Heap heap, int index) {
+	while (index > 1 & (heap.values[index >> 1] > heap.values[index])) {
+		var parent = heap.values[index >> 1];
+		heap.values[index >> 1] = heap.values[index];
+		heap.values[index] = parent;
+		index = index >> 1;
+	}
+	return;
+}
+
+void sink (Heap heap, int index) {
+	while (2 * index <= heap.size) {
+		var j = 2 * index;
+		if (j < heap.size & (heap.values[j] > heap.values[j + 1])) {
+			j = j + 1;
+		}
+		if (heap.values[index] <= heap.values[j]) {
+			index = heap.size;
+		} else {
+			var parent = heap.values[index];
+			heap.values[index] = heap.values[j];
+			heap.values[j] = parent;
+			index = j;  
+		}
+	}
+	return;
+}
+
+void insert (Heap heap, int n) {
+   heap.size = heap.size + 1;
+   heap.values[heap.size] = n;
+   swim(heap, heap.size);
+   return;
+}
+
+int peek (Heap heap) {
+	return heap.values[1];
+}
+
+int extract_min (Heap heap) {
+	var min = heap.values[1];
+	heap.values[1] = heap.values[heap.size];
+	heap.values[heap.size] = min;
+	heap.size = heap.size - 1; 
+	sink(heap, 1);
+	return min;
+}
+
+int[] heapsort (int[] arr, int arr_len) {
+	var heap = new Heap {values = new int[arr_len + 1]; arr_length = arr_len + 1; size = 0; insert = insert; extract_min = extract_min; peek = peek};
+	for (var i = 0; i < arr_len; i = i + 1;) {
+		heap.insert(heap, arr[i]);
+	}
+	for (var i = 0; i < arr_len; i = i + 1;) {
+		arr[i] = heap.extract_min(heap);
+	}
+	return arr;
+}
+
+int program (int argc, string[] argv) {
+	var arr1 = new int[]{11, -5, 0, 2, 7, 7, 3, -11};
+	var sorted_arr = heapsort(arr1, 8);
+    for (var i = 0; i < 8; i = i + 1;) {
+    	print_int(sorted_arr[i]);
+    	print_string(", ");
+    }
+    return 0;
+}

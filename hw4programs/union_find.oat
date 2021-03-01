@@ -1,0 +1,58 @@
+int[] create_ufind(int len)
+{
+  var arr = new int[len];
+  for(var i = 0; i < len; i = i + 1;)
+  {
+    arr[i] = i;
+  }
+  return arr;
+  
+}
+
+void union(int[] comps, int u, int v)
+{
+  var cU = find(comps, u);
+  var cV = find(comps, v);
+
+  if(cU == cV)
+  {
+    return;
+  }
+
+  comps[cU] = cV;
+  return;
+}
+
+int find(int[] comps, int u)
+{
+  var root = u;
+  while(root != comps[root])
+  {
+    root = comps[root];
+  }
+
+  while(u != root)
+  {
+    var parent = comps[u];
+    comps[u] = root;
+    u = parent;
+
+  }
+
+  return root;
+
+}
+
+int program (int argc, string[] argv) {
+  var uf = create_ufind(8);
+  union(uf, 0, 7);
+  union(uf, 1, 6);
+  union(uf, 2, 5);
+  union(uf, 5, 0);
+  
+  for(var i = 0; i < 8; i = i + 1;){
+    print_int(find(uf, i));
+    print_string(" ");
+  }
+  return 0;
+}

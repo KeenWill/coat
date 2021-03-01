@@ -1,0 +1,5 @@
+void f() {
+  var a = int[]{1};
+  while (a) {}
+  return;
+}

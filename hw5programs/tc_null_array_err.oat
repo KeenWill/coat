@@ -1,0 +1,5 @@
+int f() {
+  var x = int[] null;
+  x = new int[] {3,4};
+  return x[0];
+}

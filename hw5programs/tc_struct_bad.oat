@@ -1,0 +1,4 @@
+void foo() {
+  var x = new S[]{S null};
+  return;
+}

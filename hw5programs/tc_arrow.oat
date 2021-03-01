@@ -1,0 +1,15 @@
+int f((int) -> int g) {
+  return s(3);
+}
+
+int s(int x) {
+  return x;
+}
+
+int l(((int) -> int) -> int x) {
+  return 0;
+}
+
+int main() {
+  return l(f);
+}

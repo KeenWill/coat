@@ -1,0 +1,7 @@
+int program(int argc, string[] argv) {
+  var x = new int[]?[2];
+  if (x[0] == int[] null & x[1] == int[] null) {
+    return 2;
+  }
+  return 0;
+}

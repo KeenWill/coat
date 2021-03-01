@@ -1,0 +1,52 @@
+global float_len = 2;
+int[] determine_shift(int[] float)
+{
+	var dec = float[1];
+	var count = 0;
+	while(dec > 0)
+	{
+		var temp = float[0];
+		float[0] = temp << 1;
+		dec = dec >>> 1;
+		count = count + 1;
+	}
+	var list = new int[2];
+	list[0] = float[0] + float[1];
+	list[1] = count;
+	return list;
+}
+
+int[] multiply_floats(int[] f1, int[] f2)
+{
+	var f1_shifted = determine_shift(f1);
+	var f2_shifted = determine_shift(f2);
+	var product = f1_shifted[0] * f2_shifted[0];
+	var num_left_shifts = f1_shifted[1] + f2_shifted[1];
+	var remainder = 0;
+	for(var i = 0; i < num_left_shifts; i=i+1;)
+	{
+		var lsb = product [&] 1;
+		var shifted_lsb = lsb << i;
+		product = product >>> 1;
+		remainder = remainder + shifted_lsb;
+	}
+	var ans = new int[2];
+	ans[0] = product;
+	ans[1] = remainder;
+	return ans;
+}
+
+int program(int argc, string[] argv)
+{
+	var pi = new int[2];
+	pi[0] = 3;
+	pi[1] = 14159;
+	var diameter = new int[2];
+	diameter[0] = 20;
+	diameter[1] = 17;
+	var prod = multiply_floats(pi, diameter);
+	print_int(prod[0]);
+	print_string(".");
+	print_int(prod[1]);
+	return 0;
+}

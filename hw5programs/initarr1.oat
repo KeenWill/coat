@@ -1,0 +1,4 @@
+int program (int argc, string[] argv) {
+  var x = new int[3] {i -> i + 1};
+  return x[0];
+}

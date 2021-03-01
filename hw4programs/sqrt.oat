@@ -1,0 +1,44 @@
+global l2 = int[]{8, 9, 10, 11, 12, 13, 14, 15};
+
+int sqrt (int n) {
+  if (n < 0) {
+    return 0;
+  }
+
+  var s = 0;
+  while (n > 0) {
+    var d = s * s;
+    if (d > n) {
+      n = -1;
+    } else {
+      s = s + 1;
+    }
+  }
+  return s - 1;
+}
+
+int sum (int[] l) {
+  var sum = 0;
+  for (var i = 0; i < 8; i = i + 1;) {
+    sum = sum + l[i];
+  }
+  return sum;
+}
+
+int program (int argc, string[] argv) {
+  var l1 = new int[8];
+  l1[0] = 0;
+  l1[1] = 1;
+  l1[2] = 2;
+  l1[3] = 3;
+  l1[4] = 4;
+  l1[5] = 5;
+  l1[6] = 6;
+  l1[7] = 7;
+
+  var s1 = sum(l1);
+  var s2 = sum(l2);
+  var s = s1 + s2;
+  var rt = sqrt(s);
+  return rt;
+}

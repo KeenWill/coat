@@ -1,0 +1,17 @@
+struct T { int x }
+struct S { int x; int y }
+
+int sum(S? s) {
+    if?(T t = s) {
+      return t.x;
+    } else {
+      return 0;
+    }
+}
+
+int program (int argc, string[] argv) {
+    var x = 0;
+    x = x + sum(S null);
+    x = x + sum(new S{x=4; y=5});
+    return x;
+}

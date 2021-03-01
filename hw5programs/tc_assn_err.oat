@@ -1,0 +1,9 @@
+int f() {
+  return 3;
+}
+
+int bad() {
+  f() = 4;
+  return 0;
+}
+

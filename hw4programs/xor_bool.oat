@@ -1,0 +1,17 @@
+bool xor(bool x, bool y) {
+  return (x & !y) | (!x & y);
+}
+
+int to_int(bool b) {
+  if (b) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int program(int argc, string[] argv) {
+    var t = true;
+    var f = false;
+    return to_int(xor(t, t));
+}

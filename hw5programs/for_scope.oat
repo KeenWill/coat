@@ -1,0 +1,8 @@
+int program (int argc, string[] argv) {
+  var r = 0;
+  for(var z = 102, var y = z + 10; z < y; z = z + 1;) {
+    r = r + 2;
+  }
+  print_int(r);
+  return 0;
+}

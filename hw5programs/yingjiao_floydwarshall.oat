@@ -1,0 +1,102 @@
+struct Edge {
+  int weight;
+  int source;
+  int target;
+  Edge next;
+  bool hasNext
+}
+
+int min(int x, int y) {
+  if (x < y) {
+    return x;
+  } else {
+    return y;
+  }
+}
+
+int maximum(int x, int y) {
+  if (x < y | x == 5000) {
+    return y;
+  } else {
+    return x;
+  }
+}
+
+int program(int argc, string[] argv) {
+  var n = 10;
+  var arr = new int[][10];
+  
+  for (var i = 0; i < 10; i = i + 1;) {
+    arr[i] = new int[10];
+    for (var j = 0; j < 10; j = j + 1;) {
+      if (i == j) {
+        arr[i][j] = 0;
+      } else {
+        arr[i][j] = 5000;
+      }
+    }
+  }
+  
+  var e0 = new Edge {weight = 4; source = 1; target = 2; next = Edge null; hasNext = false};
+  var e1 = new Edge {weight = 3; source = 2; target = 0; next = e0; hasNext = true};   
+  var e2 = new Edge {weight = 4; source = 8; target = 5; next = e1; hasNext = true};   
+  var e3 = new Edge {weight = 1; source = 5; target = 7; next = e2; hasNext = true};   
+  var e4 = new Edge {weight = 2; source = 3; target = 1; next = e3; hasNext = true};   
+  var e5 = new Edge {weight = 3; source = 5; target = 4; next = e4; hasNext = true};   
+  var e6 = new Edge {weight = 7; source = 2; target = 1; next = e5; hasNext = true};   
+  var e7 = new Edge {weight = 5; source = 3; target = 8; next = e6; hasNext = true};   
+  var e8 = new Edge {weight = 8; source = 9; target = 4; next = e7; hasNext = true};   
+  var e9 = new Edge {weight = 3; source = 2; target = 7; next = e8; hasNext = true};   
+  var e10 = new Edge {weight = 3; source = 0; target = 2; next = e9; hasNext = true};   
+  var e11 = new Edge {weight = 0; source = 0; target = 3; next = e10; hasNext = true};   
+  var e12 = new Edge {weight = 4; source = 3; target = 2; next = e11; hasNext = true};   
+  var e13 = new Edge {weight = 2; source = 1; target = 8; next = e12; hasNext = true};   
+  var e14 = new Edge {weight = 7; source = 5; target = 1; next = e13; hasNext = true};   
+  
+
+   var e = e14;
+  while(e.hasNext) {
+    arr[e.source][e.target] = e.weight;
+    e = e.next;
+  }
+  arr[e.source][e.target] = e.weight;
+ 
+ /* 
+  arr[1][2] = 4;
+  arr[2][0] = 3;
+  arr[8][5] = 4;
+  arr[5][7] = 1;
+  arr[3][1] = 2;
+  arr[5][4] = 3;
+  arr[2][1] = 7;
+  arr[3][8] = 5;
+  arr[9][4] = 8;
+  arr[2][7] = 3;
+  arr[0][2] = 3;
+  arr[0][3] = 0;
+  arr[3][2] = 4;
+  arr[1][8] = 2;
+  arr[5][1] = 7;
+ */
+ 
+
+  for (var k = 0; k < n; k = k + 1;) {
+    for (var i = 0; i < n; i = i + 1;) {
+      for (var j = 0; j < n; j = j + 1;) {
+        arr[i][j] = min(arr[i][k] + arr[k][j], arr[i][j]);
+      }
+    }
+  }
+  
+
+  var max = 0;
+  for (var i = 0; i < 10; i = i + 1;) {
+    for (var j = 0; j < 10; j = j + 1;) {
+      max = maximum(arr[i][j], max); 
+    }
+  } 
+  
+  return max;
+}
+
+

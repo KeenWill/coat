@@ -1,0 +1,17 @@
+struct Point {
+  int x;
+  int y
+}
+
+Point? f() {
+  return Point null;
+}
+
+Point? g(() -> Point? x) {
+  return x();
+}
+
+Point? h((() -> Point?) -> Point? x) {
+  return x(f);
+}
+

@@ -1,0 +1,5 @@
+int program (int argc, string[] argv) {
+  var arr = new int[][]{new int[]{0,0,0,0}, new int[]{1,1}, new int[]{2,2}, new int[]{3,3}};
+  var len = length_of_array (arr[0]);
+  return len;
+}

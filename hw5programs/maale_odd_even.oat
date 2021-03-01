@@ -1,0 +1,35 @@
+int[] oddevensort (int[] input, int len) {
+	var sorted = false;
+	while(!sorted) {
+		sorted = true;
+		for(var i = 1; i < len - 1; i = i + 2;) {
+			if(input[i] > input[i + 1]) {
+				var temp = input[i];
+				input[i] = input[i + 1];
+				input[i + 1] = temp;
+				sorted = false;
+			}
+		}
+
+		for(var j = 0; j < len - 1; j = j + 2;) {
+			if(input[j] > input[j+1]) {
+				var temp = input[j];
+				input[j] = input[j + 1];
+				input[j + 1] = temp;
+				sorted = false;
+			}
+		}
+	}
+	return input;
+}
+
+int program (int argc, string[] argv) {
+	var arr = new int[]{ 5, 200, 1, 65, 30, 99, 2, 0 };
+  	var len = 8;
+  	var sorted = oddevensort(arr, len);
+  	for(var i=0; i<len; i=i+1;)
+   {
+     print_int(sorted[i]);
+   }
+  	return 0;
+}

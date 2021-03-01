@@ -1,0 +1,25 @@
+struct RGB {
+  int red;
+  int green;
+  int blue
+}
+
+struct Point {
+  RGB x;
+  RGB y;
+  RGB z
+}
+
+global red    = new RGB {red = 255; blue = 0; green = 0 };
+global green  = new RGB {red = 0; blue = 0; green = 255 };
+global blue   = new RGB {blue = 255; red = 0; green = 0 };
+global points = new Point[] {new Point {x=new RGB {red=255; blue=0; green=0}; 
+                                        y=new RGB {green=255; blue=0; red=0}; 
+                                        z=new RGB {blue=255; green=0; red=0}}};
+
+int program(int argc, string[] argv) {
+  points[0].x.red = 3;
+  points[0].x.green = 2;
+  points[0].x.blue = 4;
+  return points[0].x.red * points[0].x.green + points[0].x.blue;
+}

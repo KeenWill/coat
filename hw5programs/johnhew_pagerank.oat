@@ -1,0 +1,81 @@
+struct Node {
+  int value;
+  int new_value;
+  bool[] incoming_edges;
+  int outgoing_count
+}
+
+struct PageRank {
+  int iterations;
+  (int, int) -> int division_fun;
+  (Node[], int) -> void iteration_fun;
+  (Node[], int, int) -> void run_fun
+}
+
+int divide(int dividend, int divisor) {
+  var quotient = 0;
+  while (dividend > divisor) {
+    quotient = quotient + 1;
+    dividend = dividend - divisor;
+  }
+  /*print_int(quotient);
+  print_string("quotient\n");*/
+  return quotient;
+}
+
+void inter(Node[] nodes, int node_count) {
+  for (var i = 0; i < node_count; i = i+1; ) {
+    for (var j = 0; j < node_count; j = j+1; ) {
+      if (nodes[i].incoming_edges[j]) {
+        nodes[i].new_value = nodes[i].new_value + divide(nodes[j].value, nodes[j].outgoing_count); /* TODO: implement divide by number of outgoing edges. */
+      }
+    }
+  }
+  for(var i = 0; i < node_count; i = i+1;) {
+    var half = nodes[i].new_value >> 1;
+    var quarter = nodes[i].new_value >> 2;
+    nodes[i].value = divide(250000,node_count) + half + quarter; /* This is 250000 (rather than 0.25) because of the lack of floating point support. */
+    nodes[i].new_value = 0;
+  }
+  return;
+}
+
+void run(Node[] nodes, int node_count, int iterations) {
+  for (var i = 0; i < 100; i = i + 1;) {
+    inter(nodes, node_count);
+  }
+  return;
+}
+
+int program (int argc, string[] argv) {
+  var node_count = 3;
+  var nodes = new Node[node_count];
+  var node_1_arr = new bool[] {false, false, true};
+  var node_2_arr = new bool[] {false, false, false};
+  var node_3_arr = new bool[] {true, true, false};
+  nodes[0] = new Node {value = 333333; new_value = 0; incoming_edges = node_1_arr; outgoing_count = 1};
+  nodes[1] = new Node {value = 333333; new_value = 0; incoming_edges = node_2_arr; outgoing_count = 1};
+  nodes[2] = new Node {value = 333333; new_value = 0; incoming_edges = node_3_arr; outgoing_count = 1};
+
+  var pr = new PageRank {iterations = 100; division_fun = divide; iteration_fun = inter; run_fun = run};
+  pr.run_fun(nodes, 3, 100);
+
+  /*for (var i = 0; i < 100; i = i + 1;) {
+    inter(nodes, node_count);
+  }*/
+  /*print_string("Results\n");
+  print_string("Node 0: ");
+  print_int(nodes[0].value);
+  print_string("\n");
+  print_string("Node 1: ");
+  print_int(nodes[1].value);
+  print_string("\n");
+  print_string("Node 2: ");
+  print_int(nodes[2].value);
+  print_string("\n");
+  print_string("Sum: ");
+  print_int(nodes[0].value + nodes[1].value + nodes[2].value);
+  print_string("\n");*/
+  print_int(nodes[2].value);
+  return 0;
+}

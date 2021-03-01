@@ -1,0 +1,13 @@
+struct S1 {
+  int x;
+  int y
+}
+struct S2 {
+  int y;
+  int z
+}
+int program (int argv, string[] argv) {
+  var a = new S2{y = 1; z = 2};
+  print_int(a.y);
+  return 0;
+}

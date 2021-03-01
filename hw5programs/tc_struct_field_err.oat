@@ -1,0 +1,22 @@
+struct A {
+  int x
+}
+
+struct B {
+  int x;
+  int y
+}
+
+struct C {
+  A x
+}
+
+struct D {
+  B x
+}
+
+int f() {
+  var x = C null;
+  x = D null;
+  return 2;
+}

@@ -1,0 +1,14 @@
+struct S {}
+struct T {}
+
+int program(string[] args) {
+  var z = 0;
+  var s = new S{};
+  var t = new T{};
+  if (s == t) {
+    z = 17;
+  } else {
+    z = 3;
+  }
+  return z;
+}

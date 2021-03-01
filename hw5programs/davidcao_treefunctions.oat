@@ -1,0 +1,119 @@
+struct Node {
+  int val;
+  bool hasleft;
+  bool hasright;
+  Node left;
+  Node right
+}
+
+void treemap(Node t, (int) -> int f) {
+  t.val = f(t.val);
+  if (t.hasleft) {
+    treemap(t.left, f);
+  }
+  if (t.hasright) {
+    treemap(t.right, f);
+  }
+  return;
+}
+
+bool for_all(Node t, (int) -> bool pred) {
+  var result = pred(t.val);
+  if(t.hasleft & t.hasright) {
+    return result & for_all(t.left, pred) & for_all(t.right, pred);
+  } else if (t.hasleft) {
+    return result & for_all(t.left, pred);
+  } else if (t.hasright) {
+    return result & for_all(t.right, pred);
+  }
+
+  return result;
+}
+
+bool xor(bool b1, bool b2) {
+  return (b1 | b2) & !(b1 & b2);
+}
+
+bool tree_eq (Node t1, Node t2) {
+  if (t1.val != t2.val) {
+    return false;
+  } else {
+    var flag = true;
+    if (t1.hasleft & t2.hasleft) {
+      flag = flag & tree_eq(t1.left, t2.left);
+    }
+    if (t1.hasright & t2.hasright) {
+      flag = flag & tree_eq(t1.right, t2.right);
+    }
+    if (xor(t1.hasleft, t2.hasleft)) {
+      return false;
+    }
+    if (xor(t1.hasright, t2.hasright)) {
+      return false;
+    }
+    return flag;
+  }
+}
+
+int double(int i) {
+  return i*2;
+}
+
+bool pred_lt_6 (int i) {
+  return i < 6;
+}
+
+int program(int argc, string[] argv) {
+  var a1 = new Node{val = 1; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var a2 = new Node{val = 2; hasleft = true; hasright = false; left = a1; right = Node null };
+  var a3 = new Node{val = 3; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var a4 = new Node{val = 4; hasleft = true; hasright = true; left = a2; right = a3 };
+  var a5 = new Node{val = 5; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var root = new Node{val = 0; hasleft = true; hasright = true; left = a5; right = a4 };
+
+  var b1 = new Node{val = 1; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var b6 = new Node{val = 6; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var b2 = new Node{val = 2; hasleft = true; hasright = true; left = b1; right = b6 };
+  var b3 = new Node{val = 3; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var b4 = new Node{val = 4; hasleft = true; hasright = true; left = b2; right = b3 };
+  var b5 = new Node{val = 5; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var root2 = new Node{val = 0; hasleft = true; hasright = true; left = b5; right = b4 };
+
+  var c1 = new Node{val = 2; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var c2 = new Node{val = 4; hasleft = true; hasright = false; left = c1; right = Node null };
+  var c3 = new Node{val = 6; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var c4 = new Node{val = 8; hasleft = true; hasright = true; left = c2; right = c3 };
+  var c5 = new Node{val = 10; hasleft = false; hasright = false; left = Node null; right = Node null };
+  var root3 = new Node{val = 0; hasleft = true; hasright = true; left = c5; right = c4 };
+
+  if (tree_eq(root,root)) {
+    print_string("1");
+  }
+
+  if (tree_eq(root2,root2)) {
+    print_string("2");
+  }
+
+  if (!tree_eq(root,root2)) {
+    print_string("3");
+  }
+
+  if (!tree_eq(root2,root)) {
+    print_string("4");
+  }
+
+  if (for_all(root, pred_lt_6)) {
+    print_string("5");
+  }
+
+  treemap(root,double);
+  if (tree_eq(root, root3)) {
+    print_string("6");
+  }
+
+  if (!for_all(root, pred_lt_6)) {
+    print_string("7");
+  }
+
+  return 0;
+}

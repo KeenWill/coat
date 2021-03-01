@@ -1,0 +1,52 @@
+int partition(int[] a, int low_ind, int hi_ind) {
+  var pivot = a[hi_ind];
+  var i = low_ind - 1;
+  for (var j = low_ind; j < hi_ind; j=j+1;) {
+    if (a[j] <= pivot) {
+      i = i + 1;
+      var atemp1 = a[i];
+      a[i] = a[j];
+      a[j] = atemp1;
+    }
+  }
+  var atemp2 = a[i+1];
+  a[i+1] = a[hi_ind];
+  a[hi_ind] = atemp2;
+  return i+1;
+}
+
+void quicksort(int[] a, int low_ind, int hi_ind) {
+  if (low_ind < hi_ind) {
+    var p = partition(a, low_ind, hi_ind);
+    quicksort(a, low_ind, p-1);
+    quicksort(a, p+1, hi_ind);
+  }
+  return ;
+}
+
+int int_division (int a, int b) {
+  var btemp = 0;
+  var i = 0;
+  while (a > btemp) {
+    btemp = btemp + b;
+    i = i + 1;
+  }
+  return i;
+}
+
+int binary_search (int[] a, int e, int max, int min) {
+  var mid = min + int_division (max - min, 2);
+  if (a[mid] == e) {
+    return mid;
+  }
+  if (a[mid] > e) {
+    return binary_search (a, e, mid - 1, min);
+  }
+  return binary_search (a, e, max, mid + 1);
+}
+
+int program (int argc, string[] argv) {
+  var a = new int[] {5, 9, 6, 4, 2, 7, 10, 100, 1000, 99, 55, 999, 33, 4, 20};
+  quicksort (a, 0, 14);
+  return binary_search (a, 10, 14, 0) + 7 * binary_search (a, 4, 14, 0) + 23 * binary_search (a, 999, 14, 0);
+}

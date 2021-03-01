@@ -1,0 +1,49 @@
+int sqrt (int n) {
+  if (n < 0) {
+    return 0;
+  }
+  var s = 0;
+  while (n > 0) {
+    var d = s * s;
+    if (d > n) {
+      n = -1;
+    } else {
+      s = s + 1;
+    }
+  }
+  return s - 1;
+}
+
+int side_squared(Point p1, Point p2) {
+  var m1 = (p1.x - p2.x) * (p1.x - p2.x);
+  var m2 = (p1.y - p2.y) * (p1.y - p2.y);
+  if (m1 > m2) {
+    return m1 - m2;
+  } else {
+    return m2 - m1;
+  }
+}
+
+int pythagorean(Triangle t) {
+  var s1 = side_squared(t.p1, t.p2);
+  var s2 = side_squared(t.p2, t.p3);
+  return sqrt(s1 + s2);
+}
+
+struct Triangle {
+  Point p1;
+  Point p2;
+  Point p3
+}
+
+struct Point {
+  int x;
+  int y
+}
+
+global points = Point[] {Point { x = 0; y = 0 }, Point { x = 4; y = 0 }, Point { x = 4; y = 3 }};
+
+int program(int argc, string[] argv) {
+  var t = new Triangle { p1 = points[0]; p2 = points[1]; p3 = points[2] };
+  return pythagorean(t);
+}

@@ -1,0 +1,27 @@
+int f() {
+  var i1 = 3 + 4;
+  var i2 = 3 * 4;
+  var i3 = 3 - 4;
+
+  var b1 = 3 == 4;
+  var b2 = 3 != 4;
+  var b6 = 3 < 4;
+  var b7 = 3 <= 4;
+  var b8 = 3 > 4;
+  var b9 = 3 >= 4;
+
+  var i4 = 3 [&] 4;
+  var b10 = true & false;
+
+  var i5 = 3 [|] 4;
+  var b11 = true | false;
+
+  var i6 = 3 << 4;
+  var i7 = 3 >> 4;
+  var i8 = 3 >>> 4;
+
+  var i9 = - 3;
+  var i10 = ~ 4;
+  var b12 = !false;
+  return 0;
+}

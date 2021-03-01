@@ -1,0 +1,61 @@
+struct Tree {
+  int val;
+  Tree left;
+  Tree right;
+  (int) -> void f
+}
+
+void print(int val) {
+	print_string(string_cat("->", string_of_int(val)));
+	return;
+}
+
+void in_order_traverse(Tree tree) {
+	tree.f(tree.val);
+	if(tree.left.val != 0) {
+		in_order_traverse(tree.left);
+	}
+
+	if(tree.right.val != 0) {
+		in_order_traverse(tree.right);
+	}
+	return;
+}
+
+void pre_order_traverse(Tree tree) {
+	if(tree.left.val != 0) {
+		pre_order_traverse(tree.left);
+	}
+
+	tree.f(tree.val);
+
+	if(tree.right.val != 0) {
+		pre_order_traverse(tree.right);
+	}
+	return;
+}
+
+void post_order_traverse(Tree tree) {
+	if(tree.left.val != 0) {
+		post_order_traverse(tree.left);
+	}
+
+	if(tree.right.val != 0) {
+		post_order_traverse(tree.right);
+	}
+
+	tree.f(tree.val);
+	return;
+}
+
+int program(int argc, string[] argv) {
+	var nullchild = new Tree { val = 0; left = Tree null; right = Tree null; f = print};
+	var rightchild = new Tree { val = 1; left = nullchild; right = nullchild; f = print }; 
+	var leftchild = new Tree { val = 1; left = nullchild; right = nullchild; f = print }; 
+	var tree = new Tree { val = 2; left = leftchild; right = rightchild; f = print };
+
+	pre_order_traverse(tree);
+	in_order_traverse(tree);
+	post_order_traverse(tree);
+	return 0;
+}

@@ -1,0 +1,10 @@
+int program (int argc, string[] argv) {
+  var x = int[] null;
+  var z = 0;
+  if? (int[] y = x) {
+    z = 4;
+  } else {
+    z = 5;
+  }
+  return z;
+}

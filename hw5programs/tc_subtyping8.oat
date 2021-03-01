@@ -1,0 +1,19 @@
+struct A { int x }
+struct B { int x ; int y }
+struct C { int x ; int y ; int z }
+
+/*  C <: B     B <: B     */
+/* ---------------------- */
+/* (B) -> B  <:  (C) -> B */
+B f(B b) {
+  return b;
+}
+
+void g((C) -> B f) {
+  return;
+}
+
+int program(string[] args) {
+  g(f);
+  return 0;
+}

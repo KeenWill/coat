@@ -1,0 +1,149 @@
+int[] new_stack() {
+  var s = new int[7];
+  s[0] = 5;
+  s[1] = 0; /* current index of stack ptr (offset 2) */
+  return s;
+}
+
+int peek_stack(int[] s) {
+  var index = 1 + s[1];
+  return s[index];
+}
+
+int[] pop_stack(int[] s) {
+  var cur_index = s[1];
+  if(cur_index > 0) {
+    cur_index = cur_index - 1;
+  }
+
+  s[1] = cur_index;
+  return maybe_new_stack(s);
+}
+
+int[] push_stack(int[] s, int v) {
+  var cur_index = 2 + s[1];
+  s[cur_index] = v;
+  s[1] = cur_index - 1;
+  
+  return maybe_new_stack(s);
+}
+
+int[] maybe_new_stack(int[] s) {
+  /* if index of s > half the size, double the size of s */
+  /* if index of s < quarter the size, half the size of s */
+
+  return s;
+
+  var cur_index = s[1];
+  var cur_size = s[0];
+
+  if(cur_size <= 5) {
+    /* min size is 5 */
+    return s;
+  }
+
+  if(cur_index > (cur_size << 1)) {
+    /* double size of s */
+    var new_s = new int[2 + cur_size * 2];
+    cur_size = cur_size * 2;
+    new_s[0] = cur_size;
+    new_s[1] = cur_index;
+
+    /* copy over values */
+    for(var i = 0; i <= cur_index; i = i + 1;) {
+      new_s[2 + i] = s[2 + i];
+    }
+
+    return new_s;
+  } else if(cur_index < ((cur_size << 1) << 1)) {
+    /* halve s */
+    var new_s = new int[2 + cur_size << 1];
+    cur_size = cur_size << 1;
+    new_s[0] = cur_size;
+    new_s[1] = cur_index;
+
+    /* copy over values */
+    for(var i = 0; i <= cur_index; i = i + 1;) {
+      new_s[2 + i] = s[2 + i];
+    }
+
+    return new_s;
+  }
+
+  return s;
+}
+
+int get_val(int i) {
+  /* turns a char_code i into a value v */
+  return i - 48;
+}
+
+int int_of_string(string s) {
+  var arr = array_of_string(s);
+  var len = length_of_string(s);
+
+  var sum = 0;
+  for(var i = 0; i < len; i = i + 1;) {
+    sum = sum * 10;
+    var val = get_val(arr[i]);
+    sum = sum + val;
+  }
+
+  return sum;
+}
+
+
+
+int program (int argc, string[] argv) {
+  /* a stack based calculator. feed in input numbers and operands + and - */
+  /* will calculate result. a reverse polish notation calculator */
+
+  var str = "\n";
+
+  var stack = new_stack();
+
+  for(var i = 1; i < argc; i = i + 1;) {
+    var current_item = argv[i];
+
+    var did_op = false;
+
+    var len = length_of_string(current_item);
+    if(len == 1) {
+      var arr = array_of_string(current_item);
+      did_op = true;
+      if(arr[0] == 43) {
+        /* plus op */
+        var x1 = peek_stack(stack);
+        stack = pop_stack(stack);
+        var x2 = peek_stack(stack);
+        stack = pop_stack(stack);
+        stack = push_stack(stack, x1 + x2);
+      } else if(arr[0] == 45) {
+        /* minus op */
+        var x1 = peek_stack(stack);
+        stack = pop_stack(stack);
+        var x2 = peek_stack(stack);
+        stack = pop_stack(stack);
+        stack = push_stack(stack, x1 - x2);
+      } else if(arr[0] == 120) {
+        /* times op */
+        var x1 = peek_stack(stack);
+        stack = pop_stack(stack);
+        var x2 = peek_stack(stack);
+        stack = pop_stack(stack);
+        stack = push_stack(stack, x1 * x2);
+      } else {
+        did_op = false;
+      }
+    }
+
+    if(!did_op) {
+      /* didn't do op! we have a number maybe */
+      var v = int_of_string(current_item);
+      stack = push_stack(stack, v);
+    }
+  }
+
+  print_int(peek_stack(stack));
+  return peek_stack(stack);
+}

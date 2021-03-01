@@ -1,0 +1,54 @@
+/* Sumit Shyamsukha (ssumit) and Robert Zajac (rzajac) */
+/* CIS341 Spring 2017 */
+
+/* 0 is white, 1 is gray, 2 is black */
+global color = int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+global startTimes = int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+global finishTimes = int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+global topoSort = int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+global numVertices = 16;
+global index = 15;
+
+void dfs(int[][] adj) {
+	
+	for (var i = 0; i < numVertices; i=i+1;) {
+		if (color[i] == 0) {
+			dfsHelper(adj, i, 0);
+		}
+	}
+	return;
+}
+
+void dfsHelper(int[][] adj, int s, int t) {
+	color[s] = 1;
+	startTimes[s] = t;
+
+	var stringRep = string_of_array(adj[s]);
+	var length = length_of_string(stringRep);
+
+	for (var i = 0; i < length; i=i+1;) {
+		var neighbor = adj[s][i];
+		if (color[neighbor] == 0) {
+			dfsHelper(adj, neighbor, t + 1);
+		}
+	}
+
+	color[s] = 2;
+	finishTimes[s] = t + 1;
+	topoSort[index] = s;
+	index = index - 1;
+
+	return;
+}
+
+int program(int argc, string[] argv) {
+	/* Graph taken from https://i.stack.imgur.com/zuLmn.png */
+	var adjList = new int[][]{new int[]{7, 10, 13, 14}, new int[]{2, 9, 13}, new int[]{10, 12, 13, 14}, new int[]{6, 8, 9, 11}, new int[]{7}, new int[]{6, 7, 9, 10}, new int[]{15}, new int[]{14}, new int[]{15}, new int[]{11, 14}, new int[]{14}, new int[]{}, new int[]{}, new int[]{}, new int[]{}, new int[]{}};
+	dfs(adjList);
+	for (var i = 0; i < numVertices; i=i+1;) {
+		print_int(topoSort[i]);
+		print_string (" ");
+	}
+	print_string ("-");
+	return 0;
+}

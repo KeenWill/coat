@@ -1,0 +1,6 @@
+int f() {return 19;}
+
+int program (int argc, string[] argv) {
+  var a = new int[]{1, 100, 19};
+  return a[2];
+}

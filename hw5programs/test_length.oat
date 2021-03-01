@@ -1,0 +1,10 @@
+int len(int[]? arr) {
+    if?(int[] a = arr) {
+      return length(a);
+    }
+    return -1;
+}
+
+int program (int argc, string[] argv) {
+    return len(new int[]{1,2,3});
+}

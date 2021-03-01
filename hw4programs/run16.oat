@@ -1,0 +1,9 @@
+int program (int argc, string[] argv) {
+  var x = 10;
+  var a = new int[][]{new int[]{x+0+0, x+0+1, x+0+2},
+                      new int[]{x+1+0, x+1+1, x+1+2},
+                      new int[]{x+2+0, x+2+1, x+2+2}};
+
+  var b = a;
+  return b[2][1]; 
+}

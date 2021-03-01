@@ -1,0 +1,11 @@
+struct A { int x }
+struct B { int x ; int y }
+struct C { int x ; int y }
+
+void foo(A a, B b, C c) {
+  a = b;
+  a = c;
+  b = c;
+  c = b;
+  return;
+}

@@ -1,0 +1,5 @@
+int program (int argc, string[] argv) {
+  var arr = oat_alloc_array(10);
+  return arr[10];
+}
+

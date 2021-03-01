@@ -1,0 +1,62 @@
+bool arr_eq(int[] arr1, int[] arr2, int n) {
+  var flag = true;
+  for(var i = 0; i < n; i = i + 1;) {
+    flag = flag & (arr1[i] == arr2[i]);
+  }
+  return flag;
+}
+
+void clear_arr(int[] arr, int length) {
+  for (var i = 0; i < length; i = i + 1;) { arr[i] = 0; }
+  return;
+}
+
+/* Adapted from CLRS */
+int optimal_cuts (int[] prices, int length, int[] choices) {
+  var max_price = new int[length + 1];
+  max_price[0] = 0;
+  var first_cut = new int[length + 1];
+  clear_arr(first_cut, length + 1);
+
+  for (var j = 1; j <= length; j = j+1;) {
+    var max_j = 0;
+    for (var i = 1; i <= j; i = i+1;) {
+      var new_soln = prices[i] + max_price[j - i];
+      if (new_soln > max_j) {
+        max_j = new_soln;
+        first_cut[j] = i;
+      }
+    }
+    max_price[j] = max_j;
+  }
+
+  var n = length;
+  /* First cut stores the largest optimal cut that can be made */
+  /* We can recurse downwards to construct the final answer */
+  while (n > 0) {
+    var cut = first_cut[n];
+    choices[cut] = choices[cut] + 1;
+    n = n - cut;
+  }
+
+  return max_price[length];
+}
+
+int program (int argc, string[] argv) {
+  var prices = new int[] {0, 1, 5, 11, 13, 15, 17, 17, 20, 24, 30};
+  var length = 10;
+  var cuts = new int[length + 1];
+  clear_arr(cuts, length + 1);
+
+  var max_price = optimal_cuts(prices, length, cuts);
+
+  var expected_max_price = 35;
+  var expected_cuts = new int[]{0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0};
+
+  if (expected_max_price == max_price &
+    arr_eq(expected_cuts, cuts, length + 1)) {
+    return max_price;
+  } else {
+    return 0;
+  }
+}

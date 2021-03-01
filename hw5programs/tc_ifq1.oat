@@ -1,0 +1,17 @@
+int sum(int[]? arr) {
+    var acc = 0;
+    if? (int[] a = arr) {
+      for(var i = 0; i < length(a); i = i+1;) {
+        acc = acc + a[i];
+      }
+    } 
+    return acc;
+}
+
+
+int program (int argc, string[] argv) {
+  var a1 = new int[]{1, 2, 3, 4};
+  var a2 = int[] null;
+  var x = sum(a1) + sum(a2);
+  return x;
+}

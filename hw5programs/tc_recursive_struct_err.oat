@@ -1,0 +1,12 @@
+struct A{
+  B x
+}
+
+struct B {
+  A x
+}
+
+void f() {
+  var x = A null;
+  x = B null;
+}

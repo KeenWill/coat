@@ -1,0 +1,34 @@
+int foo(int x, int y, int z) {
+  var a = x + y;
+  var b = y + z;
+  return a + b;
+}
+
+int program(int argc, string[] argv) {
+  var x = 0;
+  for (var i = 0; i < 10000000; i = i + 1;) {
+    var a = 0;
+    var b = a + i;
+    var c = b + i;
+    var d = c + i;
+    d = d + foo(a, b, c);
+    var e = d + i;
+    var f = e + i;
+    var g = f + i;
+    var h = g + i;
+    var j = h + i;
+    j = j + foo(f, g, h);
+    var k = j + i;
+    var l = k + i;
+    var m = l + i;
+    var n = m + i;
+    n = n + foo(k, l, m);
+    var o = n + i;
+    var p = o + i;
+    var q = p + i;
+    var r = q + i;
+    x = x + r;
+  }
+  print_int(x);
+  return 0;
+}

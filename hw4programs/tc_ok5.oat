@@ -1,0 +1,6 @@
+global i = true;
+
+int f() {
+  var i = 0;
+  return i;
+}

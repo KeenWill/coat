@@ -1,0 +1,15 @@
+global lfsr_length      = 4;
+global lfsr_init_values = new bool[]{true, false, true, false};
+
+void print_lfsr(bool[] lfsr_register, int len) {
+    for (var i = 0; i < len; i = i + 1;) {
+        var x = lfsr_register[i];
+    }
+    return;
+}
+
+int program(int argc, string[] argv) {
+    /* Print the initial and final bool arrays with a space separator */
+    print_lfsr(lfsr_init_values, lfsr_length);
+    return 0;
+}

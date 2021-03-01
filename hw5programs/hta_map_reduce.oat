@@ -1,0 +1,98 @@
+/* Simulates nodes which perform a map job */
+int[] map ((int) -> int f, int[] src, int len) {
+	var tgt = new int[len];
+	for (var i = 0; i < len; i = i + 1;) { tgt[i] = f(src[i]); }
+	return tgt;
+}
+
+struct MapJob {
+	(int) -> int f;
+	int[] arr;
+	int arrlen
+}
+
+int[] mapNode(MapJob j) { return map(j.f, j.arr, j.arrlen); }
+
+/* Simulates nodes which perform a reduce job */
+
+int reduce((int, int) -> int f, int[] arr, int len, int base) {
+	var acc = base;
+	for (var i = 0; i < len; i = i + 1;) { acc = f(acc, arr[i]); }
+	return acc;
+}
+
+struct ReduceJob {
+	int[] arr;
+	int arrlen;
+	(int, int) -> int f;
+	int base
+}
+
+int reduceNode(ReduceJob j) { return reduce(j.f, j.arr, j.arrlen, j.base); }
+
+/* 	Generates an array of data, partitions it into map jobs and assigns
+	them to virtual map nodes. When all data is mapped, reduces it into
+	an answer and returns it */
+
+int square(int elt) { return elt * elt; }
+
+int sum(int acc, int elt) { return acc + elt; }
+
+int sumOfSquares(int[] arr, int arrlen, int numPartitions, int partitionLen) {
+	/* Partition array into almost equal subarrays */
+	var src = new int[][numPartitions];
+	for (var i = 0; i < numPartitions; i = i + 1;) {
+		src[i] = new int[partitionLen];
+	}
+	var j = 0;
+	var k = 0;
+	for (var i = 0; i < arrlen; i = i + 1;) { 
+		src[j][k] = arr[i];
+		if (j == numPartitions - 1) { 
+			j = 0; 
+			k = k + 1;
+		} else { j = j + 1; }
+	}
+	/* Build map-jobs */
+	var mapJobs = new MapJob[numPartitions];
+	for (var i = 0; i < numPartitions; i = i + 1;) {
+		mapJobs[i] = new MapJob { 
+			f = square; 
+			arr = src[i]; 
+			arrlen = partitionLen 
+		};
+	}
+	/* Map! */
+	var tgt = new int[][numPartitions];
+	for (var i = 0; i < numPartitions; i = i + 1;) {
+		tgt[i] = mapNode(mapJobs[i]);
+	}
+	
+	/* Build reduce-jobs */
+	var reduceJobs = new ReduceJob[numPartitions];
+	for (var i = 0; i < numPartitions; i = i + 1;) {
+		reduceJobs[i] = new ReduceJob {
+			f = sum;
+			arr = tgt[i];
+			arrlen = partitionLen;
+			base = 0
+		};
+	}
+	/* Reduce! */
+	var acc = 0;
+	for (var i = 0; i < numPartitions; i = i + 1;) { 
+		acc = acc + reduceNode(reduceJobs[i]);
+	}
+	return acc;
+}
+
+int program(int argc, string[] argv) {
+	/* Initialize array with first n positive ints */
+	var n = 30;
+	var arr = new int[n];
+	for (var i = 0; i < n; i = i + 1;) { arr[i] = i + 1; }
+	/* Need partitionLen * numPartitions >= arr.length */
+	var numPartitions = 5;
+	var partitionLen = 6;
+	return sumOfSquares(arr, n, numPartitions, partitionLen);
+}

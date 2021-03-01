@@ -1,0 +1,149 @@
+struct Node {
+  int val;
+  Node next
+}
+
+struct Stack {
+  Node head;
+  int size
+}
+
+struct Calculator {
+  (Stack) -> void add;
+  (Stack) -> void sub;
+  (Stack) -> void mul
+}
+
+/* Stack operations */
+Stack new_stack() {
+  return new Stack { head = Node null; size = 0 };
+}
+
+int peek_stack(Stack s) {
+  if (s.size == 0) {
+    return -1;
+  }
+  return s.head.val;
+}
+
+int pop_stack(Stack s) {
+  if (s.size == 0) {
+    return -1;
+  }
+  var top = s.head.val;
+  s.head = s.head.next;
+  s.size = s.size - 1;
+  return top;
+}
+
+void push_stack(Stack s, int v) {
+  var node = new Node { val = v; next = s.head };
+  s.head = node;
+  s.size = s.size - 1;
+  return;
+}
+
+int get_val(int i) {
+  /* turns a char_code i into a value v */
+  return i - 48;
+}
+
+/* Calculator operations */
+void calc_binop(Stack s, (int, int) -> int op) {
+  var x1 = pop_stack(s);
+  var x2 = pop_stack(s);
+  var val = op(x1, x2);
+  push_stack(s, val);
+  return;
+}
+
+int add_op(int v1, int v2) {
+  return v1 + v2;
+}
+
+int sub_op(int v1, int v2) {
+  return v1 - v2;
+}
+
+int mul_op(int v1, int v2) {
+  return v1 * v2;
+}
+
+void calc_add(Stack s) {
+  calc_binop(s, add_op);
+  return;
+}
+
+void calc_sub(Stack s) {
+  calc_binop(s, sub_op);
+  return;
+}
+
+void calc_mul(Stack s) {
+  calc_binop(s, mul_op);
+  return;
+}
+
+Calculator new_calculator() {
+  return new Calculator { add = calc_add; sub = calc_sub; mul = calc_mul };
+}
+
+/* String manipulation */
+int int_of_string(string s) {
+  var arr = array_of_string(s);
+  var len = length_of_string(s);
+
+  var sum = 0;
+  for(var i = 0; i < len; i = i + 1;) {
+    sum = sum * 10;
+    var val = get_val(arr[i]);
+    sum = sum + val;
+  }
+
+  return sum;
+}
+
+/* Main program */
+int program (int argc, string[] argv) {
+  /* A stack-based reverse Polish notation calculator. Feed in input numbers */
+  /* and operands + (addition), - (subtraction), and x (multiplication) to   */
+  /* calculate result.                                                       */
+
+  var str = "\n";
+
+  var stack = new_stack();
+  var calculator = new_calculator();
+
+  for(var i = 1; i < argc; i = i + 1;) {
+    var current_item = argv[i];
+
+    var did_op = false;
+
+    var len = length_of_string(current_item);
+    if (len == 1) {
+      var arr = array_of_string(current_item);
+      did_op = true;
+      if (arr[0] == 43) {
+        /* plus op */
+        calculator.add(stack);
+      } else if (arr[0] == 45) {
+        /* minus op */
+        calculator.sub(stack);
+      } else if (arr[0] == 120) {
+        /* times op */
+        calculator.mul(stack);
+      } else {
+        did_op = false;
+      }
+    }
+
+    if (!did_op) {
+      /* didn't do op! we have a number maybe */
+      var v = int_of_string(current_item);
+      push_stack(stack, v);
+    }
+  }
+
+  print_int(peek_stack(stack));
+  return peek_stack(stack);
+}

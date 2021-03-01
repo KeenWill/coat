@@ -1,0 +1,47 @@
+int shortest_path(int[][] matrix, int w, int h) {
+	var dp = new int[][h];
+	for (var i = 0; i < h; i=i+1;) {
+		dp[i] = new int[w];
+		for (var j = 0; j < w; j=j+1;) {
+			dp[i][j] = 0;
+		}
+	}
+	return shortest_path_dp(matrix, dp, 0, 0, w, h);
+}
+
+int shortest_path_dp(int[][] matrix, int[][] dp, int i, int j, int w, int h) {
+	if (i >= w | j >= h) {
+		return 100;
+	}
+	if (i == w-1 & j == h-1) {
+		dp[i][j] = matrix[i][j];
+		return dp[i][j];
+	}
+	if (dp[i][j] != 0) {
+		return dp[i][j];
+	}
+	var go_down_val = shortest_path_dp(matrix, dp, i, j+1, w, h);
+	var go_right_val = shortest_path_dp(matrix, dp, i+1, j, w, h);
+	if (go_down_val < go_right_val) {
+		dp[i][j] = go_down_val + matrix[i][j];
+	} else {
+		dp[i][j] = go_right_val + matrix[i][j];
+	}
+	return dp[i][j];
+}
+
+int program(int argc, string[] argv) {
+	var matrix = new int[][5];
+	for (var i = 0; i < 5; i=i+1;) {
+		matrix[i] = new int[5];
+	}
+	for (var i = 0; i < 5; i=i+1;) {
+		for (var j = 0; j < 5; j=j+1;) {
+			matrix[i][j] = 2*(i+1) + (j+1);
+		}
+	}
+	matrix[0][4] = 50;
+	matrix[1][3] = 50;
+	matrix[2][2] = 50;
+	return shortest_path(matrix, 5, 5);
+}

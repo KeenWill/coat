@@ -1,0 +1,12 @@
+int f() {
+  return 0;
+}
+
+int g() {
+  return 1;
+}
+
+int program(string[] args) {
+   f = g;
+   return 0;
+}

@@ -1,0 +1,8 @@
+int program(int arc, string[] args) {
+  var arr = new int[3];
+  print_int(arr[0]);
+  print_int(arr[1]);
+  print_int(arr[2]);
+  print_int(arr[3]);
+  return 0;
+}

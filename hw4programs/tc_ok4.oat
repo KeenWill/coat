@@ -1,0 +1,5 @@
+int f() {
+  var i = 0;
+  var arr = new int[3]{j -> 0};
+  return i;
+}

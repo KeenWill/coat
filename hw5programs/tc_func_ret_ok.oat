@@ -1,0 +1,23 @@
+struct A {
+  int x
+}
+
+struct B {
+  int x;
+  int y
+}
+
+A f() {
+  return new A {x = 3};
+}
+
+B g() {
+  return new B {x = 3; y = 4};
+}
+
+int l() {
+  var x = f;
+  x = g;
+  return 3;
+}
+

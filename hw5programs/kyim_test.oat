@@ -1,0 +1,53 @@
+global path1 = int[]{0, 0, 1};
+global path2 = int[]{1, 1, 0};
+
+struct Node {
+  int val;
+  Node left;
+  Node right;
+  (int, int) -> int fun
+}
+
+int sum_plus_one(int x, int y) {
+  return x+y+1;
+}
+
+int two_x_plus_y(int x, int y) {
+  return 2*x+y;
+}
+
+void make_children(Node root, int depth) {
+  if (depth != 0) {
+    var left_node = new Node{val=root.fun(root.val, 0); left=Node null; right=Node null; fun=root.fun};
+    make_children(left_node, depth-1);
+    var right_node = new Node{val=root.fun(root.val, 1); left=Node null; right=Node null; fun=root.fun};
+    make_children(right_node, depth-1);
+    root.left = left_node;
+    root.right = right_node;
+  }
+  return;
+}
+
+int retrieve(Node root, int depth, int[] path) {
+  var next = root.right;
+  if (path[depth] == 0) {
+    next = root.left;
+  }
+  if (depth == 0) {
+    return next.val;
+  } else {
+    return retrieve(next, depth-1, path);
+  }
+}
+
+int program(int argc, string[] argv) {
+  var root1 = new Node{val=1; left=Node null; right=Node null; fun=sum_plus_one};
+  var root2 = new Node{val=2; left=Node null; right=Node null; fun=two_x_plus_y};
+  make_children(root1, 3);
+  make_children(root2, 3);
+  if (retrieve(root1, 2, path1) == 5 & retrieve(root2, 2, path2) == 19) {
+    return 1;
+  } else {
+    return 0;
+  }
+}

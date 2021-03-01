@@ -1,0 +1,7 @@
+global j = new int[]{1,2,3,4};
+int[] f () {
+  var a = new int[][]{1, 2};
+  var i = new int[4];
+  var arr1 = new int[3];
+  return new int[2];
+}

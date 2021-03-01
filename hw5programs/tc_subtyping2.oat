@@ -1,0 +1,7 @@
+struct A {}
+struct B { int x }
+
+void foo(A a, B b) {
+  a = b;
+  return;
+}

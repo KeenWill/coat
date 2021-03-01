@@ -1,0 +1,5 @@
+int program (int argc, string[] argv) {
+  var i=999;
+  var a = new int[]{1, 100, 999};
+  return a[2];
+}

@@ -1,0 +1,25 @@
+global str1 = "Hello ";
+
+string string_concat (string str1, string str2) {
+  var arr1 = array_of_string (str1);
+  var arr2 = array_of_string (str2);
+  var len1 = length_of_array (arr1);
+  var len2 = length_of_array (arr2);
+  var arr3 = new int[len1+len2];
+  var i = 0;
+  for(var j=0; j<len1; j=j+1;) {
+    arr3[i] = arr1[j];
+    i=i+1; 
+  }
+  for(var j=0; j<len2; j=j+1;) {
+    arr3[i] = arr2[j];
+    i=i+1;
+  }
+  return string_of_array (arr3);  
+}
+
+int program (int argc, string[] argv) {
+  var str2 = "world!";
+  print_string (string_concat (str1, str2));
+  return 0;
+}

@@ -1,0 +1,77 @@
+struct RGB {
+  int red;
+  int green;
+  int blue
+}
+
+struct GrayScale {
+  int lightness;
+  int average;
+  int luminosity
+}
+
+int div (int a, int b) {
+  var count = 0;
+  var cur_num = a;
+  while (cur_num - b >= 0) {
+    cur_num = cur_num - b;
+    count = count + 1;
+  }
+  return count;
+}
+
+int max (int a, int b, int c) {
+  var m = 0;
+  if (a > b) {
+    m = a;
+  } else {
+    m = b;
+  }
+
+  if (c > m) {
+    m = c;
+  }
+
+  return m;
+}
+
+int min (int a, int b, int c) {
+  var m = 300;
+  if (a < b) {
+    m = a;
+  } else {
+    m = b;
+  }
+
+  if (c < m) {
+    m = c;
+  }
+
+  return m;
+}
+
+GrayScale rgbtogray (RGB rgb) {
+  var maxNum = max(rgb.red, rgb.green, rgb.blue);
+  var minNum = min(rgb.red, rgb.green, rgb.blue);
+
+  var maxmin = maxNum + minNum;
+  var light = div(maxmin, 2);
+
+  var averageSum = rgb.red + rgb.green + rgb.blue;
+  var ave = div(averageSum, 3);
+
+  var luminositySum = (rgb.red * 21) + (rgb.green * 72) + (rgb.blue * 7);
+  var lum = luminositySum;
+
+  var gray = new GrayScale { lightness = light; average = ave; luminosity = lum };
+  return gray;
+}
+
+global rgb = RGB { red = 200; green = 150; blue = 100 };
+
+global gray = GrayScale { lightness = 150; average = 150; luminosity = 150 };
+
+int program (int argc, string[] argv) {
+  var convert = rgbtogray(rgb);
+  return (convert.average - gray.average) + (convert.lightness - gray.lightness);
+}

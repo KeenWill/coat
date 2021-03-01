@@ -1,0 +1,25 @@
+/* Java string hash function */
+/* hash = s[0] * 31 ^ (n - 1) + s[1] * 31 ^(n - 2) + ... + s[n-1]*/
+
+int program(int argc, string[] argv) {
+    var s = "aa";
+    var h = hash(s);
+    print_int(h);
+    return 0;
+}
+
+int hash(string s) {
+    var int_arr = array_of_string(s);
+    var length = length_of_string(s);
+    var hash = 0;
+    for(var i = 0; i < length; i= i+1;) {
+        var power = 1;
+        for(var j = length - i - 1; j > 0; j= j-1;) {
+            power = power * 31;
+        }
+        var char = int_arr[i];
+        hash = hash + power * char;
+        
+    }
+    return hash;
+}

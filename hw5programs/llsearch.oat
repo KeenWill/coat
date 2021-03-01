@@ -1,0 +1,56 @@
+struct Node {
+  int v;
+  Node? next
+}
+
+global head = Node null;
+global tail = Node null;
+
+void add(int i) {
+    if (i < 0) {
+        i = -1 * i;
+    }
+
+    if? (Node t = tail) {
+        t.next = new Node { v = i; next = Node null };
+        tail = t.next;
+        return;
+    } else {
+        head = new Node { v = i; next = Node null };
+        tail = head;
+        return;
+    }
+}
+
+int get(Node? n, int i) {
+    if? (Node nn = n) {
+        if (i > 0) {
+            return get(nn.next, i - 1);
+        } else {
+            return nn.v;
+        }
+    } else {
+        return -1;
+    }
+}
+
+bool search(Node? n, int s) {
+    if? (Node nn = n) {
+        return nn.v == s | search(nn.next, s);
+    } else {
+        return false;
+    }
+}
+
+int program(int argc, string[] argv) {
+  var arr = new int[10]{i -> i * i};
+  for (var i = 0; i < 10; i = i + 1;) {
+      add(arr[i]);
+  }
+
+  if (search(head, 4)) {
+    return get(head, 5);
+  } else {
+    return get(head, 2);
+  }
+}

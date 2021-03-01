@@ -1,0 +1,174 @@
+global debug = false;
+
+struct Node {
+	string val;
+	bool visited;
+	Queue neighbors;
+	bool hasNext
+}
+
+struct QNode {
+	Node node;
+	QNode next;
+	bool qhasNext
+}
+
+struct Queue {
+	QNode head;
+	QNode tail;
+	int size
+}
+
+Node getIthInQueue(int i, Queue q) {
+	var tmp = q.head;
+	if (i + 1 == q.size) {
+		return q.tail.node;
+	}
+	while (tmp.qhasNext) {
+		if (i == 0) {
+			return tmp.node;
+		}
+		tmp = tmp.next;
+		i = i - 1;
+	}
+	return newNode("ERROR");
+}
+
+Node newNode(string v) {
+	return new Node {val=v; hasNext=false; visited=false; neighbors=newEmptyQueue()};
+}
+
+QNode newQNode(Node n) {
+	return new QNode {node=n; next=QNode null; qhasNext=false};
+}
+
+void printNode(Node n) {
+	print_string(n.val);
+	return;
+}
+
+Queue newEmptyQueue() {
+	return new Queue {head=QNode null; tail=QNode null; size=0};
+}
+
+
+bool isEmpty(Queue q) {
+	return q.size == 0;	
+}
+
+void printNeighbors(Node n) {
+	printNeighborsDebug(n, debug);
+	return;
+}
+
+void printNeighborsDebug(Node n, bool d) {
+	if (!d) {
+		return;
+	}
+	var s = n.neighbors.size;
+	for (var i = 0; i < s; i = i + 1;) {
+		var x = getIthInQueue(i, n.neighbors);
+		printNode(x);
+	}
+	print_string("\n");
+	return;
+}
+
+void enqueue(Queue q, Node n) {
+	var node = newQNode(n);
+	if (q.size == 0) {
+		q.head = node;
+	} else {
+		q.tail.qhasNext = true;
+		q.tail.next = node;
+	}
+	q.size = q.size + 1;
+	node.qhasNext = false;
+	q.tail = node;
+	return;
+}
+
+Node dequeue(Queue q) {
+	if (isEmpty(q)) {
+		return newNode("");
+	}
+	var tmp = q.head;
+	q.head = tmp.next;
+	q.size = q.size - 1;
+	return tmp.node;
+}
+
+void addNeighbor(Node tgt, Node toAdd) {
+	enqueue(tgt.neighbors, toAdd);
+	return;
+}
+
+void bfs(Node start) {
+	var q = newEmptyQueue();
+	start.visited = true;
+	enqueue(q, start);
+	while (!isEmpty(q)) {
+		var curr = dequeue(q);
+		printNode(curr);
+		var s = curr.neighbors.size;
+		for (var i = 0; i < s; i = i + 1;) {
+			var n = getIthInQueue(i, curr.neighbors);
+			if (!(n.visited)) {
+				n.visited = true;
+				enqueue(q, n);
+			}
+		}
+	}
+	return;
+}
+
+
+void print_debug(string msg) {
+	if (!debug) {
+		return;
+	}
+	print_string(msg);
+	return;
+}
+
+int program (int argc, string[] argv) {
+
+	var there = newNode("there ");
+	var should = newNode("should ");
+	var be = newNode("be ");
+	var better = newNode("better ");
+	var food = newNode("food ");
+	var options = newNode("options ");
+	var on = newNode("on ");
+	var campus = newNode("campus");
+
+	addNeighbor(there, should);
+	addNeighbor(there, be);
+	addNeighbor(there, better);
+	
+	addNeighbor(should, there);
+	addNeighbor(should, food);
+	
+	addNeighbor(be, there);
+	addNeighbor(be, better);
+	
+
+	addNeighbor(better, there);
+	addNeighbor(better, be);
+	addNeighbor(better, options);
+	
+	addNeighbor(food, should);
+	addNeighbor(food, options);
+	
+	addNeighbor(options, food);
+	addNeighbor(options, better);
+	addNeighbor(options, on);
+	addNeighbor(options, campus);
+	
+	addNeighbor(on, options);
+	
+	addNeighbor(campus, options);
+	
+	bfs(there);
+	return 0; 	
+}

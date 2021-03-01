@@ -1,0 +1,69 @@
+/*
+Takes a .gim graphics file;
+prints a simple ascii representation of the colors.
+Optimized for light-text-on-dark-background terminals
+(inverts the colors), and subsamples the height by .5
+to better maintain aspect ratio of square files.
+
+ -- John Hewitt, CIS 341 2017sp
+*/
+
+int program (int argc, string[] argv) {
+  var s = argv[1];
+  var width = get_width(s);
+  var height = get_height(s);
+  var bytes = load_image(s);
+  print_string(string_of_int(width));
+  print_string("x");
+  print_string(string_of_int(height));
+  print_string("\n");
+  var rowlen = 0;
+  var row = new int[width];
+  var off = 1;
+  for (var i=0; i < width*height; i=i+1;) {
+    /*print_string(string_of_int(i));
+    print_string("x");
+    print_string(string_of_int(rowlen));
+    print_string("x");
+    print_string(string_of_int(width));
+    print_string("x");
+    print_string(string_of_int(bytes[i]));
+    print_string("\n");*/
+    if (bytes[i] > 230) {
+      row[rowlen] = 64; /* @ */
+    } else if (bytes[i] > 204) {
+      row[rowlen] = 37; /* % */
+    } else if (bytes[i] > 179) {
+      row[rowlen] = 35; /* # */
+    } else if (bytes[i] > 153) {
+      row[rowlen] = 42; /* * */
+    } else if (bytes[i] > 128) {
+      row[rowlen] = 43; /* + */
+    } else if (bytes[i] > 102) {
+      row[rowlen] = 61; /* = */
+    } else if (bytes[i] > 77) {
+      row[rowlen] = 58; /* : */
+    } else if (bytes[i] > 51) {
+      row[rowlen] = 45; /* - */
+    } else if (bytes[i] > 26) {
+      row[rowlen] = 46; /* . */
+    } else {
+      row[rowlen] = 32; /*   */
+    }
+    if (rowlen == width-1) {
+      var test = off [&] 1;
+      if (test == 1) {
+        print_string(string_of_array(row));
+        print_string("\n");
+        off = 0;
+
+      } else {
+        off = 1;
+      }
+      rowlen = 0;
+    } else {
+      rowlen = rowlen + 1;
+    }
+  }
+  return 0;
+}

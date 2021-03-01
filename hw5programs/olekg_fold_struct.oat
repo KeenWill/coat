@@ -1,0 +1,32 @@
+struct Node {
+  int i;
+  Node next;
+  bool hasNext
+}
+
+int minus(int x, int y) { return x - y; }
+
+int plus(int x, int y) { return x + y; }
+
+int fold_str_int(Node n, (int, int) -> int f, int base) {
+  if(n.hasNext) {
+    var newBase = f(base, n.i);
+    return fold_str_int(n.next, f, newBase);
+  } else {
+    return f(base, n.i);
+  }
+}
+  
+
+int program(int argc, string[] argv) {
+  var n9 = new Node {i=9; next=Node null; hasNext=false};
+  var n8 = new Node {i=8; next=n9; hasNext=true};
+  var n7 = new Node {i=7; next=n8; hasNext=true};
+  var n6 = new Node {i=6; next=n7; hasNext=true};
+  var n5 = new Node {i=5; next=n6; hasNext=true};
+  var n4 = new Node {i=4; next=n5; hasNext=true};
+  var n3 = new Node {i=3; next=n4; hasNext=true};
+  var n2 = new Node {i=2; next=n3; hasNext=true};
+  var n1 = new Node {i=1; next=n2; hasNext=true};
+  return fold_str_int(n1, plus, 0) - fold_str_int(n1, minus, 2);
+} 

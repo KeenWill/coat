@@ -1,0 +1,15 @@
+global x = 42;
+int set_x(int y) {
+  var z = 0;
+  while (z < y) {
+    z = z + 1;
+    if (z == 37) {
+      return z;
+    }
+  }
+  return 0;
+}
+int program (int argc, string[] argv) {
+  x = set_x(30);
+  print_int(x);
+}

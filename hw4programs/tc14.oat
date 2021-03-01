@@ -1,0 +1,4 @@
+int program (int argc, string[] argv) {
+  var a = new int[]{"hello"};
+  return 0;
+}

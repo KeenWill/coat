@@ -1,0 +1,60 @@
+struct Dog {
+	string name;
+	int food
+}
+
+struct TrainableDog {
+	Dog dog;
+	int intelligence;
+	(TrainableDog, int) -> int train
+}
+
+struct Person {
+	string name;
+	bool[][] areaMap;
+	((Person, int, int) -> void) visit
+}
+
+struct DogOwner {
+	Person person;
+	int numDogs;
+	Dog[] dogs;
+	(DogOwner, int) -> void feedDogs
+}
+
+int train(TrainableDog tdog, int food) {
+	tdog.intelligence = tdog.intelligence + 1;
+	tdog.dog.food = tdog.dog.food + food;
+	return tdog.dog.food;
+}
+
+void visit(Person p, int x, int y) { p.areaMap[x][y] = true; return; }
+
+void feedDogs(DogOwner do, int numDogs) {
+	for (var i = 0; i < numDogs; i = i + 1;) {
+		do.dogs[i].food = do.dogs[i].food + 1;
+	}
+	return;
+}
+
+int program(int argc, string[] argv) {
+	var dog = new Dog { name = "Holmes"; food = 10 };
+	var tdog = new TrainableDog { dog = dog; intelligence = 0; train = train };
+	var areaMap = new bool[][] { new bool[] {false, false}, new bool[] {false, true} };
+	var p = new Person { name = "Guy"; areaMap = areaMap; visit = visit };
+	var do = new DogOwner { feedDogs = feedDogs; numDogs = 1; person = p; dogs = new Dog[] { dog } };
+
+	var newFood = tdog.train(tdog, 5);
+	p.visit(p, 0, 0);
+	do.feedDogs(do, 1);
+
+	var numVisited = 0;
+	for (var i = 0; i < 2; i = i + 1;) {
+		for (var j = 0; j < 2; j = j + 1;) {
+			if (p.areaMap[i][j]) {
+				numVisited = numVisited + 1;
+			}
+		}
+	}
+	return dog.food + numVisited;
+}
