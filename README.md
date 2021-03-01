@@ -1,25 +1,34 @@
+# Oat++
+
+Oat with type-safe channels.
+
+## Building and running tests
+
 Using main.native for testing:
 
 * To run the automated test harness do:
-  - on OS X:   ./main.native --test              
-  - on Linux:  ./main.native -linux --test     
+  - on OS X:   `./main.native --test`            
+  - on Linux:  `./main.native -linux --test`
 
-* To compile ll files using the 341 backend:
-  ./main.native path/to/foo.ll 
+* To compile ll files using the backend:
+  `./main.native path/to/foo.ll`
 
-  - creates output/foo.s   backend assembly code
-  - creates output/foo.o   assembled object file
-  - creates a.out          linked executable
+  - creates `output/foo.s`   backend assembly code
+  - creates `output/foo.o`   assembled object file
+  - creates `a.out`          linked executable
 
- NOTE: by default the .s and .o files are created in 
+ **NOTE:** by default the `.s` and `.o` files are created in 
  a directory called output, and the filenames are 
  chosen so that multiple runs of the compiler will
- not overwrite previous outputs.  foo.ll will be 
- compiled first to foo.s then foo_1.s, foo_2.s, etc.
+ not overwrite previous outputs. `foo.ll` will be 
+ compiled first to `foo.s` then `foo_1.s`, `foo_2.s`, etc.
 
 
 * To compile ll files using the clang backend:
+
+```shell
   ./main.native --clang path/to/foo.ll
+```
 
 * Useful flags:
 
@@ -58,12 +67,12 @@ Using main.native for testing:
 
 * Example uses:
 
-Run the test case /programs/factrect.ll using the 341 backend:
+Run the test case `/programs/factrect.ll` using the backend:
 
-
+```shell
 ./main.native --execute-x86 programs/factrect.ll 
 --------------------------------------------------------------- Executing: a.out
 * a.out returned 120
-
+```
 
 Run the test
