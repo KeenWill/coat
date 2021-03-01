@@ -1,0 +1,6 @@
+(executable
+ (name oat++)
+ (public_name oat++)
+ (libraries unix str num ll driver) 
+ (modes exe)
+)

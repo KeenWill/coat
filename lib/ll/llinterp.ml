@@ -1,4 +1,4 @@
-open Ll
+open Lltypes
 open Llutil
 
 (* LLVMlite interpreter *)
@@ -44,7 +44,7 @@ let mval_of_gdecl (gd:gdecl) : mval =
   let rec mtree_of_gdecl : gdecl -> mtree = function
     | ty, GNull              -> MWord (VPtr (ty, NullId, [0]))
     | ty, GGid g             -> MWord (VPtr (ty, GlobId g, [0]))
-    | _, GBitcast (t1, v,t2) -> mtree_of_gdecl (t1, v)
+    | _, GBitcast (t1, v, _) -> mtree_of_gdecl (t1, v)
     | _, GInt i              -> MWord (VInt i)
     | _, GString s           -> MStr s
     | _, GArray gs
@@ -56,7 +56,7 @@ let mval_of_ty (nt:tid -> ty) (t:ty) : mval =
   let rec mtree_of_ty : ty -> mtree = function
     | I1 | I8 | I64 | Ptr _ -> MWord VUndef
     | Array (n, I8) -> MStr (String.make n '\x00')
-    | Array (n, t)  -> MNode Array.(make n (MWord VUndef) |> to_list)
+    | Array (n, _)  -> MNode Array.(make n (MWord VUndef) |> to_list)
     | Struct ts     -> MNode (List.map mtree_of_ty ts)
     | Fun _ | Void  -> failwith "mval_of_ty: mval for bad type"
     | Namedt id     -> mtree_of_ty (nt id)
@@ -183,7 +183,7 @@ let rec load_idxs (m:mval) (idxs:idx list) : mtree =
      match idxs', List.nth m i with
      | [],  mt       -> mt
      | [0], MStr s   -> MStr s  (* [n x i8]* %p and gep [n x i8]* %p, 0, 0 alias *)
-     | _,   MWord v  -> failwith "load_idxs: attempted to index into word"
+     | _,   MWord _  -> failwith "load_idxs: attempted to index into word"
      | _,   MStr _   -> failwith "load_idxs: attempted to index into string"
      | _,   MNode m' -> load_idxs m' idxs'
 
@@ -195,7 +195,7 @@ let rec store_idxs (m:mval) (idxs:idx list) (mt:mtree) : mval =
      if len <= i || i < 0 then raise OOBIndexDeref else
      match idxs', List.nth m i with
      | [], _        -> replace_nth m i mt
-     | _,  MWord v  -> failwith "store_idxs: attempted to index into word"
+     | _,  MWord _  -> failwith "store_idxs: attempted to index into word"
      | _,  MStr _   -> failwith "store_idxs: attempted to index into string"
      | _,  MNode m' -> replace_nth m i @@ MNode (store_idxs m' idxs' mt)
 
@@ -242,7 +242,7 @@ let effective_tag (nt:tid -> ty) (tag, _, idxs :ptr) : ty =
     | Struct ts,    i::idxs' -> if List.length ts <= i 
                                 then failwith "effective_tag: index oob of struct"
                                 else loop (List.nth ts i) idxs'
-    | Array (n, t), i::idxs' -> loop t idxs' (* Don't check if OOB! *)
+    | Array (_, t), _::idxs' -> loop t idxs' (* Don't check if OOB! *)
     | Namedt id,    _        -> loop (nt id) idxs
     | _,            _::_     -> failwith "effective_tag: index into non-aggregate"
   in
@@ -274,13 +274,13 @@ let legal_gep (nt:tid -> ty) (sty:ty) (tag:ty) : bool =
 let gep_ptr (nt:tid -> ty) (ot:ty) (p:ptr) (idxs':idx list) : sval =
   if not (legal_gep nt ot @@ effective_tag nt p) then VUndef else
     match p with
-    | t, NullId, idxs -> VUndef
+    | _, NullId, _ -> VUndef
     | t, bid, idxs ->
        VPtr (t, bid, gep_idxs idxs idxs')
 
 
 (* LLVMlite reference interpreter *)
-let interp_prog {tdecls; gdecls; fdecls} (args:string list) : sval =
+let interp_prog {tdecls; gdecls; fdecls; _} (args:string list) : sval =
   
   let globals = List.map (fun (g,gd) -> g,mval_of_gdecl gd) gdecls in
 
@@ -318,7 +318,7 @@ let interp_prog {tdecls; gdecls; fdecls} (args:string list) : sval =
        let mv = [MStr (s1 ^ s2)] in
        let heap = (mid, mv)::c.heap in
        {c with heap}, VPtr (t, HeapId mid, [0])
-    | I64, "ll_ltoa", [VInt i; VPtr dst] ->
+    | I64, "ll_ltoa", [VInt i; VPtr _] ->
        let mid = next_id () in
        let mv = [MStr (Int64.to_string i)] in
        let heap = (mid, mv)::c.heap in
@@ -440,7 +440,7 @@ let interp_prog {tdecls; gdecls; fdecls} (args:string list) : sval =
     if List.mem fn runtime_fns
     then runtime_call ty fn args c
     else
-    let {f_param; f_cfg} = try List.assoc fn fdecls 
+    let {f_param; f_cfg; _} = try List.assoc fn fdecls 
                        with Not_found -> failwith @@ "interp_call: undefined function " ^ fn
     in
     if List.(length f_param <> length args) then

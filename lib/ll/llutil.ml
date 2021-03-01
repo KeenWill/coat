@@ -1,4 +1,4 @@
-;; open Ll
+open Lltypes
 
 (* serializing --------------------------------------------------------------- *)
 
@@ -129,9 +129,9 @@ let compare_block (b:block) (c:block) : int =
     | Call (Void, _, _) -> "", i
     | _ -> u, i
   in
-  let del_term (u,t) = ("", t)
+  let del_term (_,t) = ("", t)
   in
-  Pervasives.compare
+  compare
     {insns=List.map del_dummy b.insns; term=del_term b.term}
     {insns=List.map del_dummy c.insns; term=del_term c.term}
 

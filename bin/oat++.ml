@@ -1,3 +1,5 @@
+(** Entry point for Oat compiler *)
+
 open Ll
 open Arg
 open Assert

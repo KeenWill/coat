@@ -1,0 +1,4 @@
+(library
+ (name assert)
+ (libraries driver)
+)

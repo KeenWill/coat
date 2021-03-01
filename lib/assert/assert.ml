@@ -146,7 +146,7 @@ let get_results (t : result test) =
           float_of_int passed /. float_of_int total *. float_of_int pts
         in
         let name_pts =
-          Printf.sprintf "%s (%1.f/%d points)" name points_earned pts
+          Printf.sprintf "%s (%1.2f/%d points)" name points_earned pts
         in
         (name_pts, passed, failed, total, points_earned, pts, 0)
       else
@@ -186,7 +186,7 @@ let outcome_to_string (o : outcome) : string =
   ^ Printf.sprintf
       "Passed: %d/%d\n\
        Failed: %d/%d\n\
-       Score: %1.f/%d (given)\n\
+       Score: %1.2f/%d (given)\n\
       \       ?/%d (hidden)"
       p tot
       f tot
