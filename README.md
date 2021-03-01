@@ -44,7 +44,7 @@ Using main.native for testing:
 
   --execute-x86
     runs the resulting a.out file natively
-    (applies to either the 341 backend or clang-compiled code)
+    (applies to either the backend or clang-compiled code)
 
   -v
     generates verbose output, showing which commands are used
