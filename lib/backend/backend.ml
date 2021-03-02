@@ -4,6 +4,7 @@ open Ll_lib.Llutil
 open X86_lib
 open Optimizer
 open Datastructures
+open Util
 
 (* allocated llvmlite function bodies --------------------------------------- *)
 

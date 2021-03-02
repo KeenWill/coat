@@ -74,7 +74,7 @@ let verb msg =
   if !verbose
   then (
     print_string msg ;
-    flush Pervasives.stdout )
+    flush Stdlib.stdout )
 
 
 let verb_os () =

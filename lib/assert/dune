@@ -1,4 +1,0 @@
-(library
- (name assert)
- (libraries ll_lib)
-)

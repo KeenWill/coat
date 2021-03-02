@@ -1,5 +1,6 @@
 %{
 open Ast
+open Util
 
 let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
   { elt ; loc=Range.mk_lex_range startpos endpos }

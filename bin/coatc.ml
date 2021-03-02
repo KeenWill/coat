@@ -2,8 +2,9 @@
 
 open Ll_lib.Ll
 open Arg
-open Assert
 open Driver
+open Util
+open Util.Assert
 
 exception Ran_tests
 (* let suite = ref (Studenttests.provided_tests @ Gradedtests.graded_tests) *)

@@ -3,7 +3,7 @@
 
 open Format
 open Ast
-(* open Range *)
+open Util
 
 (* Precedence for expressions and operators *)
 (* Higher precedences bind more tightly     *)

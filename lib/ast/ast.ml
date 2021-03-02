@@ -1,3 +1,4 @@
+open Util
 
 type 'a node = { elt : 'a; loc : Range.t }
 

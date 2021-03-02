@@ -1,5 +1,6 @@
 (** Optimizer *)
 open Ll_lib
+open Util
 
 (* dead code elimination ---------------------------------------------------- *)
 let dce (g:Cfg.t) : Cfg.t =

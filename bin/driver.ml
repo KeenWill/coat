@@ -1,8 +1,9 @@
 open Printf
-open Platform
 open Ll_lib
 open Ast_lib
 open X86_lib
+open Util
+open Util.Platform
 
 (* configuration flags ------------------------------------------------------ *)
 let print_ll_flag = ref false

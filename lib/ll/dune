@@ -7,5 +7,5 @@
 (library
  (name ll_lib)
  (modules ll llinterp llutil llparser lllexer)
- (libraries platform)
+ (libraries util)
 )

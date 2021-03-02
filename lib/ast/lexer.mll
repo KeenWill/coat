@@ -1,9 +1,9 @@
 {
   open Lexing
   open Parser
-  open Range
+  open Util.Range
   
-  exception Lexer_error of Range.t * string
+  exception Lexer_error of t * string
 
   let reset_lexbuf (filename:string) (lnum:int) lexbuf : unit =
     lexbuf.lex_curr_p <- {
@@ -20,7 +20,7 @@
     
   (* Boilerplate to define exceptional cases in the lexer. *)
   let unexpected_char lexbuf (c:char) : 'a =
-    raise (Lexer_error (Range.lex_range lexbuf,
+    raise (Lexer_error (lex_range lexbuf,
         Printf.sprintf "Unexpected character: '%c'" c))
 
   (* Lexing reserved words *)
@@ -92,12 +92,12 @@ let (symbol_table : (string, Parser.token) Hashtbl.t) = Hashtbl.create 1024
   (* Lexing comments and strings *)
   let string_buffer = ref (Bytes.create 2048)
   let string_end = ref 0
-  let start_lex = ref (Range.start_of_range Range.norange)
+  let start_lex = ref (start_of_range norange)
 
   let start_pos_of_lexbuf lexbuf : pos =
-    (Range.pos_of_lexpos (lexeme_start_p lexbuf))
+    (pos_of_lexpos (lexeme_start_p lexbuf))
 
-  let lex_long_range lexbuf : Range.t =
+  let lex_long_range lexbuf : t =
     let end_p = lexeme_end_p lexbuf in
     mk_range end_p.pos_fname (!start_lex) (pos_of_lexpos end_p)  
 

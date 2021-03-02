@@ -6,6 +6,6 @@
 
 (library
  (name ast_lib)
- (libraries range)
+ (libraries util)
  (modules ast astlib parser lexer)
 )
