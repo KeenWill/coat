@@ -1,5 +1,11 @@
+(ocamllex (modules lllexer))
+
+(menhir 
+    (flags --explain)
+    (modules llparser))
+
 (library
- (name ll)
- (libraries assert)
- (modules llutil)
+ (name ll_lib)
+ (modules ll llinterp llutil llparser lllexer)
+ (libraries platform)
 )

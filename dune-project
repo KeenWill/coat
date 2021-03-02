@@ -1,10 +1,10 @@
 (lang dune 2.5)
 (using menhir 2.0)
 
-(name oat++)
+(name coatc)
 
 (package
- (name oat++)
+ (name coatc)
  (synopsis "Oat")
  (depends
   (dune (>= 2.5))

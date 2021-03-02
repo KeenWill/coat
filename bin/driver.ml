@@ -1,5 +1,8 @@
 open Printf
 open Platform
+open Ll_lib
+open Ast_lib
+open X86_lib
 
 (* configuration flags ------------------------------------------------------ *)
 let print_ll_flag = ref false
@@ -52,12 +55,12 @@ let parse_ll_file filename =
   in
   program
 
-let parse_oat_file filename =
+let parse_oat_file (filename: string) : Ast.prog =
   let lexbuf = read_file filename |> 
                Lexing.from_string
   in
   try
-    Parser.prog Lexer.token lexbuf
+  Parser.prog Lexer.token lexbuf
   with
   | Parser.Error -> failwith @@ Printf.sprintf "Parse error at: %s"
       (Range.string_of_range (Range.lex_range lexbuf))
@@ -112,7 +115,7 @@ let process_ll_file path file =
   let ll_ast = parse_ll_file path in
   process_ll_ast path file ll_ast
 
-let process_oat_ast path file oat_ast =
+let process_oat_ast path file (oat_ast: Ast.prog) =
   if !print_oat_flag then print_oat file oat_ast;
   if !print_ast_flag then print_ast oat_ast;
   Typechecker.typecheck_program oat_ast;

@@ -1,6 +1,6 @@
 (** Entry point for Oat compiler *)
 
-open Ll
+open Ll_lib.Ll
 open Arg
 open Assert
 open Driver
@@ -36,7 +36,7 @@ let _ =
   Platform.create_output_dir ();
   try
     Arg.parse args (fun filename -> files := filename :: !files)
-      "CIS 341 main test harness\n\
+      "Oat main test harness\n\
        USAGE: ./main.native [options] <files>\n\
        see README for details about using the compiler";
     Platform.configure_os ();

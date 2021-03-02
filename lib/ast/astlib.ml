@@ -1,5 +1,3 @@
-(* astlib.ml *)
-
 (* Helper functions of abstract syntax of trees. *)
 (******************************************************************************)
 

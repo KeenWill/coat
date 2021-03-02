@@ -1,6 +1,7 @@
 (executable
- (name oat++)
- (public_name oat++)
- (libraries unix str num ll driver) 
+ (name coatc)
+ (public_name coatc)
+ (libraries unix str num assert ll_lib)
+ (modules driver) 
  (modes exe)
 )

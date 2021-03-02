@@ -1,35 +1,44 @@
 
-open Ast
+open Ast_lib
 
 type fty = Ast.ty list * Ast.ret_ty
 
 (* typing contexts *)
 type local_ctxt = (Ast.id * Ast.ty) list
 type global_ctxt = (Ast.id * Ast.ty) list
+type fun_ctxt = (Ast.id * fty) list
 type struct_ctxt = (Ast.id * Ast.field list) list
 
 (* bundled together *)
 type t = {
-  locals : local_ctxt;      (* Corresponds to the L of the inference rules *)
-  globals : global_ctxt;    (* Corresponds to the G of the inference rules *)
-  structs : struct_ctxt;    (* Corresponds to the H of the inference rules *)
+  locals : local_ctxt;
+  globals : global_ctxt;
+  functions : fun_ctxt;
+  structs : struct_ctxt;
 }
 
-let empty = { locals = []; globals = []; structs = [] }
+let empty = { locals = []; globals = []; functions = []; structs = [] }
 
 (* locals ------------------------------------------------------------------- *)
-let add_local (c:t) (id:id) (bnd : Ast.ty) : t = {c with locals = (id, bnd)::c.locals}
+let add_local (c:t) (id: Ast.id) (bnd : Ast.ty) : t = {c with locals = (id, bnd)::c.locals}
 let lookup_local (id : Ast.id) (c : t) : Ast.ty = List.assoc id c.locals
 let lookup_local_option id c : Ast.ty option =
   try Some (List.assoc id c.locals) with Not_found -> None
 
 (* globals ------------------------------------------------------------------ *)
-let add_global (c:t) (id:id) (bnd:Ast.ty) : t = {c with globals = (id, bnd)::c.globals}
+let add_global (c:t) (id: Ast.id) (bnd:Ast.ty) : t = {c with globals = (id, bnd)::c.globals}
 let lookup_global (id : Ast.id) (c : t) : Ast.ty = List.assoc id c.globals
 let lookup_global_option id c : Ast.ty option =
   try Some (List.assoc id c.globals) with Not_found -> None
 
-(* general-purpose lookup: for local _or_ global *)
+(* functions ---------------------------------------------------------------- *)
+let add_function (c:t) (id: Ast.id) (bnd : fty) : t = {c with functions = (id, bnd)::c.functions}
+let lookup_function (id : Ast.id) (c : t) : fty = List.assoc id c.functions
+let lookup_function_option id c : fty option =
+  try Some (List.assoc id c.functions) with Not_found -> None
+
+
+(* general-purpose lookup: for local _or_ global: note function ids aren't considered  *)
 let lookup id c : Ast.ty =
   match lookup_local_option id c with
   | None -> lookup_global id c
@@ -49,7 +58,7 @@ let lookup_struct_option id c =
   try Some (lookup_struct id c) with Not_found -> None
 
 let lookup_field_option st_name f_name c =
-  let rec lookup_field_aux f_name l =
+  let rec lookup_field_aux f_name (l : Ast.field list) =
     match l with
     | [] -> None
     | h :: t -> if h.fieldName = f_name then Some h.ftyp else lookup_field_aux f_name t in
