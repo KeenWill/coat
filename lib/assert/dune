@@ -1,4 +1,4 @@
 (library
  (name assert)
- (libraries ll_lib driver)
+ (libraries ll_lib)
 )

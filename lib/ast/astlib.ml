@@ -3,7 +3,7 @@
 
 open Format
 open Ast
-open Range
+(* open Range *)
 
 (* Precedence for expressions and operators *)
 (* Higher precedences bind more tightly     *)
@@ -217,7 +217,7 @@ and print_stmt_aux fmt s =
         pps "if ("; print_exp_aux 0 fmt e; pps ") ";
         print_cond_aux fmt b_then opt_b_else
 
-    | Cast(t, id, e, b_null, b_notnull) ->
+    | Cast(_, id, e, b_null, b_notnull) ->
         pps "ifnull ("; print_id_aux fmt id; pps "="; print_exp_aux 0 fmt e; 
         pps ") ";
         print_cond_aux fmt b_null b_notnull
