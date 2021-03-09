@@ -1,0 +1,4 @@
+(library
+ (name x86_lib)
+ (modules x86 registers)
+)

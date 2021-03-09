@@ -1,0 +1,11 @@
+(ocamllex (modules lexer))
+
+(menhir 
+    (flags --explain)
+    (modules parser))
+
+(library
+ (name ast_lib)
+ (libraries util)
+ (modules ast astlib parser lexer)
+)
