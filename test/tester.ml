@@ -1,21 +1,21 @@
-(* testing framework *)
+
 open X86_lib.X86
+include X86_lib 
 open Driver
 open Ll_lib.Ll
 open Backend
-(* open Analysistests *)
 open Datastructures
+open Util
 open Util.Assert
+include Platform
+include Optimizer
 
-(* Do NOT modify this file -- we will overwrite it with our *)
-(* own version when we test your project.                   *)
-
-(* These tests will be used to grade your assignment *)
+let adj_path = "../../../" 
 
 let exec_ll_ast path ll_ast args extra_files =
   let () = Platform.verb @@ Printf.sprintf "** exec_ll_ast: %s\n" path in
 
-  let output_path = !Platform.output_path in
+  let output_path = adj_path ^ !Platform.output_path in
 
   (* First - optimize the ll ast *)
   let _ = Opt.do_opt := true in
@@ -57,21 +57,18 @@ let oat_file_e2e_test path args =
   let oat_ast = parse_oat_file path in
   Typechecker.typecheck_program oat_ast;
   let ll_ast = Frontend.cmp_prog oat_ast in
-  exec_ll_ast path ll_ast args ["runtime.c"]
+  exec_ll_ast path ll_ast args [adj_path ^ "runtime.c"]
 
-let pass_all = ref true
+(* let pass_all = ref true
 let pass_all_executed_ll_file tests =
   List.map (fun (fn, ans) ->
       fn, (fun () ->
           try  assert_eqf (fun () -> exec_ll_file fn "") ans ()
           with exn -> pass_all := false; raise exn))
-    tests
+    tests *)
 
-let pass_all_executed_oat_file (path, args, ans) =
-  (path ^ " args: " ^ args),
-  (fun () ->
-      try assert_eqf (fun () -> oat_file_e2e_test path args) ans ()
-      with exn -> pass_all := false; raise exn))
+let execute_oat_file_with_output (path, args, ans) =
+  (oat_file_e2e_test (adj_path ^ path) args) = ans
 (* 
 let compile_with_config live regalloc ll_ast =
   let open Registers in
@@ -305,152 +302,152 @@ let ll_tests =
 (* Should not be used for quality tests *)
 
 (* greedy_is_good_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun1.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun2.oat", "", "35")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun5.oat", "", "212")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun6.oat", "", "9")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun7.oat", "", "23")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun8.oat", "", "160")
-let%test _ = pass_all_executed_oat_file ("hw4programs/path1.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run26.oat", "", "0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run27.oat", "", "99")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run29.oat", "", "1")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run30.oat", "", "9")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run31.oat", "", "9")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run13.oat", "", "1")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run38.oat", "", "31")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run40.oat", "", "8")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run60.oat", "", "85")
-let%test _ = pass_all_executed_oat_file ("hw4programs/heap.oat", "", "1")
-let%test _ = pass_all_executed_oat_file ("hw5programs/ifq2.oat", "", "5")
-let%test _ = pass_all_executed_oat_file ("hw5programs/length1.oat", "", "5")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lcs.oat", "", "OAT0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun1.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun2.oat", "", "35")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun5.oat", "", "212")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun6.oat", "", "9")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun7.oat", "", "23")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun8.oat", "", "160")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/path1.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run26.oat", "", "0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run27.oat", "", "99")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run29.oat", "", "1")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run30.oat", "", "9")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run31.oat", "", "9")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run13.oat", "", "1")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run38.oat", "", "31")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run40.oat", "", "8")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run60.oat", "", "85")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/heap.oat", "", "1")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/ifq2.oat", "", "5")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/length1.oat", "", "5")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lcs.oat", "", "OAT0")
 
 (* hw4_easiest_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun3.oat", "", "73")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun4.oat", "", "6")
-let%test _ = pass_all_executed_oat_file ("hw4programs/easyrun9.oat", "", "236")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun3.oat", "", "73")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun4.oat", "", "6")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun9.oat", "", "236")
 
 (* Should not be used for quality tests *)
 
 (* hw4_globals_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/globals1.oat", "", "42")
-let%test _ = pass_all_executed_oat_file ("hw4programs/globals2.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/globals3.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/globals4.oat", "", "5")
-let%test _ = pass_all_executed_oat_file ("hw4programs/globals5.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/globals6.oat", "", "15")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/globals1.oat", "", "42")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/globals2.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/globals3.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/globals4.oat", "", "5")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/globals5.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/globals6.oat", "", "15")
 
 (* hw4_path_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/path2.oat", "", "35")
-let%test _ = pass_all_executed_oat_file ("hw4programs/path3.oat", "", "3")
-let%test _ = pass_all_executed_oat_file ("hw4programs/arrayargs1.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/arrayargs2.oat", "", "17")
-let%test _ = pass_all_executed_oat_file ("hw4programs/arrayargs4.oat", "", "0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/path2.oat", "", "35")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/path3.oat", "", "3")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/arrayargs1.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/arrayargs2.oat", "", "17")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/arrayargs4.oat", "", "0")
 
 (* hw4_easy_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/run28.oat", "", "18")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run32.oat", "", "33")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run21.oat", "", "99")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run33.oat", "", "1")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run34.oat", "", "66")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run39.oat", "a", "2")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run42.oat", "", "2")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run49.oat", "", "abc0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run50.oat", "", "abcde0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run61.oat", "", "3410")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run28.oat", "", "18")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run32.oat", "", "33")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run21.oat", "", "99")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run33.oat", "", "1")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run34.oat", "", "66")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run39.oat", "a", "2")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run42.oat", "", "2")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run49.oat", "", "abc0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run50.oat", "", "abcde0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run61.oat", "", "3410")
 
 (* hw4_medium_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/fact.oat", "", "1200")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run1.oat", "", "153")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run2.oat", "", "6")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run8.oat", "", "2")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run9.oat", "", "4")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run10.oat", "", "5")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run11.oat", "", "7")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run14.oat", "", "16")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run15.oat", "", "19")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run16.oat", "", "13")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run22.oat", "", "abc0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run23.oat", "", "1230")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run25.oat", "", "nnn0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run46.oat", "", "420")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run47.oat", "", "3")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run48.oat", "", "11")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib4.oat", "", "53220")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib5.oat", "", "20")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib6.oat", "", "56553")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib7.oat", "", "53")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib8.oat", "", "Hello world!0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib9.oat", "a b c d", "abcd5")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib11.oat", "", "45")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib14.oat", "", "~}|{zyxwvu0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lib15.oat", "123456789", "456780")
-let%test _ = pass_all_executed_oat_file ("hw4programs/regalloctest.oat", "", "0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/regalloctest2.oat", "", "137999986200000000")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/fact.oat", "", "1200")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run1.oat", "", "153")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run2.oat", "", "6")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run8.oat", "", "2")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run9.oat", "", "4")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run10.oat", "", "5")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run11.oat", "", "7")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run14.oat", "", "16")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run15.oat", "", "19")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run16.oat", "", "13")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run22.oat", "", "abc0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run23.oat", "", "1230")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run25.oat", "", "nnn0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run46.oat", "", "420")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run47.oat", "", "3")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run48.oat", "", "11")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib4.oat", "", "53220")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib5.oat", "", "20")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib6.oat", "", "56553")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib7.oat", "", "53")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib8.oat", "", "Hello world!0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib9.oat", "a b c d", "abcd5")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib11.oat", "", "45")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib14.oat", "", "~}|{zyxwvu0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lib15.oat", "123456789", "456780")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/regalloctest.oat", "", "0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/regalloctest2.oat", "", "137999986200000000")
 
 
 (* hw4_hard_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/fac.oat", "", "120")
-let%test _ = pass_all_executed_oat_file ("hw4programs/bsort.oat", "", "y}xotnuw notuwxy}255")
-let%test _ = pass_all_executed_oat_file ("hw4programs/msort.oat", "", "~}|{zyxwvu uvwxyz{|}~ 0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/msort2.oat", "", "~}|{zyxwvu uvwxyz{|}~ 0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/selectionsort.oat", "", "01253065992000")
-let%test _ = pass_all_executed_oat_file ("hw4programs/matrixmult.oat", "", "19 16 13 23 \t5 6 7 6 \t19 16 13 23 \t5 6 7 6 \t0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/fac.oat", "", "120")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/bsort.oat", "", "y}xotnuw notuwxy}255")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/msort.oat", "", "~}|{zyxwvu uvwxyz{|}~ 0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/msort2.oat", "", "~}|{zyxwvu uvwxyz{|}~ 0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/selectionsort.oat", "", "01253065992000")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/matrixmult.oat", "", "19 16 13 23 \t5 6 7 6 \t19 16 13 23 \t5 6 7 6 \t0")
 
 
 (* hw4_old_student_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/binary_search.oat", "", "Correct!0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/xor_shift.oat", "", "838867572\n22817190600")
-let%test _ = pass_all_executed_oat_file ("hw4programs/sieve.oat", "", "25")
-let%test _ = pass_all_executed_oat_file ("hw4programs/fibo.oat", "", "0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/lfsr.oat", "", "TFTF FFTT0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/gnomesort.oat", "", "01253065992000")
-let%test _ = pass_all_executed_oat_file ("hw4programs/josh_joyce_test.oat", "", "0")
-let%test _ = pass_all_executed_oat_file ("hw4programs/gcd.oat", "", "16")
-let%test _ = pass_all_executed_oat_file ("hw4programs/insertion_sort.oat", "", "42")
-let%test _ = pass_all_executed_oat_file ("hw4programs/maxsubsequence.oat", "", "107")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/binary_search.oat", "", "Correct!0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/xor_shift.oat", "", "838867572\n22817190600")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/sieve.oat", "", "25")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/fibo.oat", "", "0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/lfsr.oat", "", "TFTF FFTT0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/gnomesort.oat", "", "01253065992000")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/josh_joyce_test.oat", "", "0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/gcd.oat", "", "16")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/insertion_sort.oat", "", "42")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/maxsubsequence.oat", "", "107")
 
 
 (* struct_tests *)
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_assign_struct.oat", "", "16")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_basic_struct.oat", "", "7")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_global_struct.oat", "", "254")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_nested_struct.oat", "", "10")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_return_struct.oat", "", "0")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_struct_array.oat", "", "15")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_struct_fptr.oat", "", "7")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_various_fields.oat", "", "hello253")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_assign_struct.oat", "", "16")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_basic_struct.oat", "", "7")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_global_struct.oat", "", "254")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_nested_struct.oat", "", "10")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_return_struct.oat", "", "0")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_struct_array.oat", "", "15")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_struct_fptr.oat", "", "7")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_various_fields.oat", "", "hello253")
 
 
 (* fptr_tests *)
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_array_fptr.oat", "", "2")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_func_argument.oat", "", "4")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_global_fptr.oat", "", "7")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_global_fptr_unordered.oat", "", "2")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_scall_fptr.oat", "", "4")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_var_fptr.oat", "", "1")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_local_fptr.oat", "", "5")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_function_shadow.oat", "", "12")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_global_struct_fptr.oat", "", "20")
-let%test _ = pass_all_executed_oat_file ("hw5programs/compile_builtin_argument.oat", "", "abab0")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_array_fptr.oat", "", "2")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_func_argument.oat", "", "4")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_global_fptr.oat", "", "7")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_global_fptr_unordered.oat", "", "2")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_scall_fptr.oat", "", "4")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_var_fptr.oat", "", "1")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_local_fptr.oat", "", "5")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_function_shadow.oat", "", "12")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_global_struct_fptr.oat", "", "20")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/compile_builtin_argument.oat", "", "abab0")
 
 
 (* regalloc_challenge_tests *)
-let%test _ = pass_all_executed_oat_file ("hw4programs/arrayargs3.oat", "", "34")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run41.oat", "", "3")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run51.oat", "", "341")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run52.oat", "", "15")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run54.oat", "", "10")
-let%test _ = pass_all_executed_oat_file ("hw4programs/run55.oat", "", "6");   
-let%test _ = pass_all_executed_oat_file ("hw4programs/qsort.oat", "", "kpyf{shomfhkmopsy{255")
-let%test _ = pass_all_executed_oat_file ("hw4programs/count_sort.oat", "", "AFHZAAEYC\nAAACEFHYZ0")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/arrayargs3.oat", "", "34")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run41.oat", "", "3")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run51.oat", "", "341")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run52.oat", "", "15")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run54.oat", "", "10")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/run55.oat", "", "6")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/qsort.oat", "", "kpyf{shomfhkmopsy{255")
+let%test _ = execute_oat_file_with_output ("test/hw4programs/count_sort.oat", "", "AFHZAAEYC\nAAACEFHYZ0")
 
 (* new_tests *)
-let%test _ = pass_all_executed_oat_file z("hw5programs/ifq1.oat", "", "4")
-let%test _ = pass_all_executed_oat_file z("hw5programs/length2.oat", "", "3")
-let%test _ = pass_all_executed_oat_file z("hw5programs/initarr1.oat", "", "1")
-let%test _ = pass_all_executed_oat_file z("hw5programs/initarr2.oat", "", "2")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/ifq1.oat", "", "4")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/length2.oat", "", "3")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/initarr1.oat", "", "1")
+let%test _ = execute_oat_file_with_output ("test/hw5programs/initarr2.oat", "", "2")
 
 (* 
 let dce_opt_tests =
@@ -506,7 +503,7 @@ let tests : suite =
   GradedTest("constprop analysis tests", 15, dfa_constprop_file constprop_analysis_tests);
   GradedTest("constprop optimization tests", 10, opt_constfold_file constprop_opt_tests);
   Test("ll regalloc correctness tests", pass_all_executed_ll_file ll_tests);
-  Test("oat regalloc correctness tests", pass_all_executed_oat_file (oat_correctness_tests @ regalloc_challenge_tests));
+  Test("oat regalloc correctness tests", execute_oat_file_with_output (oat_correctness_tests @ regalloc_challenge_tests));
   GradedTest("oat regalloc quality tests", 35, quality_oat oat_regalloc_quality_tests);
   ]
 
