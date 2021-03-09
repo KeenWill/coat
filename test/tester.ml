@@ -59,13 +59,8 @@ let oat_file_e2e_test path args =
   let ll_ast = Frontend.cmp_prog oat_ast in
   exec_ll_ast path ll_ast args [adj_path ^ "runtime.c"]
 
-(* let pass_all = ref true
-let pass_all_executed_ll_file tests =
-  List.map (fun (fn, ans) ->
-      fn, (fun () ->
-          try  assert_eqf (fun () -> exec_ll_file fn "") ans ()
-          with exn -> pass_all := false; raise exn))
-    tests *)
+let execute_ll_file_with_output args path ans =
+  (exec_ll_file (adj_path ^ path) args) = ans
 
 let execute_oat_file_with_output (path, args, ans) =
   (oat_file_e2e_test (adj_path ^ path) args) = ans
@@ -194,112 +189,83 @@ let executed_fullopt_file tests =
       (Printf.sprintf "fullopt %d iterations: %s" n path,
         fun () -> ll_opt_file_test path (opt n) ans)) tests *)
 
-(* 
-let binop_tests =
-  [ "llprograms/add.ll", "14"
-  ; "llprograms/sub.ll", "1"
-  ; "llprograms/mul.ll", "45"
-  ; "llprograms/and.ll", "0"
-  ; "llprograms/or.ll",  "1"
-  ; "llprograms/xor.ll", "0"
-  ; "llprograms/shl.ll", "168"
-  ; "llprograms/lshr.ll", "10"
-  ; "llprograms/ashr.ll", "5" ]
+(* binop_tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/add.ll" "14"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/sub.ll" "1"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/mul.ll" "45"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/and.ll" "0"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/or.ll"  "1"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/xor.ll" "0"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/shl.ll" "168"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/lshr.ll" "10"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/ashr.ll" "5"
 
-let calling_convention_tests =
-  [ "llprograms/call.ll", "42"
-  ; "llprograms/call1.ll", "17" 
-  ; "llprograms/call2.ll", "19"
-  ; "llprograms/call3.ll", "34"
-  ; "llprograms/call4.ll", "34"
-  ; "llprograms/call5.ll", "24"
-  ; "llprograms/call6.ll", "26"            
-  ; "llprograms/call7.ll", "7"
-  ; "llprograms/call8.ll", "21"
-  ]
+(* calling convention tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call.ll" "42"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call1.ll" "17" 
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call2.ll" "19"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call3.ll" "34"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call4.ll" "34"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call5.ll" "24"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call6.ll" "26"            
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call7.ll" "7"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/call8.ll" "21"
 
-let memory_tests =
-  [ "llprograms/alloca1.ll", "17"
-  ; "llprograms/alloca2.ll", "17"
-  ; "llprograms/global1.ll", "12"    
-  ]
+(* memory_tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/alloca1.ll" "17"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/alloca2.ll" "17"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/global1.ll" "12"
 
-let terminator_tests =
-  [ "llprograms/return.ll", "0"
-  ; "llprograms/return42.ll", "42"
-  ; "llprograms/br1.ll", "9"
-  ; "llprograms/br2.ll", "17"    
-  ; "llprograms/cbr1.ll", "7"
-  ; "llprograms/cbr2.ll", "9"
-  ; "llprograms/cbr3.ll", "9"
-  ]
+(* terminator_tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/return.ll" "0"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/return42.ll" "42"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/br1.ll" "9"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/br2.ll" "17"    
+let%test _ = execute_ll_file_with_output "" "test/llprograms/cbr1.ll" "7"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/cbr2.ll" "9"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/cbr3.ll" "9"
 
-let bitcast_tests =
-  [ "llprograms/bitcast1.ll", "3"
-  ]
+(* bitcast_tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/bitcast1.ll" "3"
 
-let gep_tests =
-  [ "llprograms/gep1.ll", "6"
-  ; "llprograms/gep2.ll", "4"
-  ; "llprograms/gep3.ll", "1"
-  ; "llprograms/gep4.ll", "2"
-  ; "llprograms/gep5.ll", "4"
-  ; "llprograms/gep6.ll", "7"
-  ; "llprograms/gep7.ll", "7"    
-  ; "llprograms/gep8.ll", "2"
-  ; "llprograms/gep9.ll", "5"
-  ; "llprograms/gep10.ll", "3"            
-  ]
+(* gep_tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep1.ll" "6"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep2.ll" "4"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep3.ll" "1"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep4.ll" "2"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep5.ll" "4"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep6.ll" "7"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep7.ll" "7"    
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep8.ll" "2"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep9.ll" "5"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gep10.ll" "3"            
 
+(* arithmetic_tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/add_twice.ll" "29" 
+let%test _ = execute_ll_file_with_output "" "test/llprograms/sub_neg.ll" "255" (* Why, oh why, does the termianl only report the last byte? *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/arith_combo.ll" "4"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/return_intermediate.ll" "18"
 
-let arithmetic_tests =
-  [ "llprograms/add_twice.ll", "29" 
-  ; "llprograms/sub_neg.ll", "255" (* Why, oh why, does the termianl only report the last byte? *)
-  ; "llprograms/arith_combo.ll", "4"
-  ; "llprograms/return_intermediate.ll", "18" ]
-
-let sum_tree_tests = ["llprograms/sum_tree.ll", "116"]
-let gcd_euclidian_tests = [ "llprograms/gcd_euclidian.ll", "2"]
-let sieve_tests = [["cinterop.c"], "llprograms/sieve.ll", [], "1"]
-let binary_search_tests = ["llprograms/binarysearch.ll", "8"]
-let gep_5_deep_tests = ["llprograms/qtree.ll", "3"]
-let binary_gcd_tests = ["llprograms/binary_gcd.ll", "3"]
-let linear_search_tests = ["llprograms/linear_search.ll", "1"]
-let lfsr_tests = ["llprograms/lfsr.ll", "108"]
-let naive_factor_tests = 
-  [ "llprograms/naive_factor_prime.ll", "1"
-  ; "llprograms/naive_factor_nonprime.ll", "0"
-  ]
-let euclid_recursive_test = ["llprograms/euclid.ll", "2"]
-let matmul_tests = ["llprograms/matmul.ll", "0"]
-
-let large_tests = [ "llprograms/list1.ll", "3"
-                  ; "llprograms/cbr.ll", "42"
-                  ; "llprograms/factorial.ll", "120"
-                  ; "llprograms/factrect.ll", "120"
-                  ] *)
-(* 
-let ll_tests =
-  binop_tests 
-  @ terminator_tests 
-  @ memory_tests 
-  @ calling_convention_tests 
-  @ bitcast_tests
-  @ gep_tests 
-  @ arithmetic_tests 
-  @ sum_tree_tests
-  @ gcd_euclidian_tests
-  @ binary_search_tests
-  @ gep_5_deep_tests
-  @ binary_gcd_tests
-  @ linear_search_tests
-  @ lfsr_tests
-  @ naive_factor_tests
-  @ euclid_recursive_test
-  @ matmul_tests
-  @ large_tests *)
-
-(* Should not be used for quality tests *)
+let%test _ = execute_ll_file_with_output "" "test/llprograms/sum_tree.ll" "116"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/gcd_euclidian.ll" "2"
+let%test _ = execute_ll_file_with_output "cinterop.c" "test/llprograms/sieve.ll" "1"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/binarysearch.ll" "8"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/qtree.ll" "3"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/binary_gcd.ll" "3"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/linear_search.ll" "1"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/lfsr.ll" "108"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/naive_factor_prime.ll" "1"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/naive_factor_nonprime.ll" "0"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/euclid.ll" "2"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/matmul.ll" "0"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/list1.ll" "3"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/cbr.ll" "42"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/factorial.ll" "120"
+let%test _ = execute_ll_file_with_output "" "test/llprograms/factrect.ll" "120"
+                  
+(*
+ * OAT TESTS
+ *)
 
 (* greedy_is_good_tests *)
 let%test _ = execute_oat_file_with_output ("test/hw4programs/easyrun1.oat", "", "17")
@@ -451,47 +417,47 @@ let%test _ = execute_oat_file_with_output ("test/hw5programs/initarr2.oat", "", 
 
 (* 
 let dce_opt_tests =
-  [ "llprograms/analysis1_cf_opt.ll", "llprograms/analysis1_dce_opt.ll"
-  ; "llprograms/analysis2_cf_opt.ll", "llprograms/analysis2_dce_opt.ll"
-  ; "llprograms/analysis3_cf_opt.ll", "llprograms/analysis3_dce_opt.ll"
-  ; "llprograms/analysis4_cf_opt.ll", "llprograms/analysis4_dce_opt.ll"
-  ; "llprograms/analysis5_cf_opt.ll", "llprograms/analysis5_dce_opt.ll"
-  ; "llprograms/analysis6_cf_opt.ll", "llprograms/analysis6_dce_opt.ll"
-  ; "llprograms/analysis7_cf_opt.ll", "llprograms/analysis7_dce_opt.ll"
-  ; "llprograms/analysis8_cf_opt.ll", "llprograms/analysis8_dce_opt.ll"
-  ; "llprograms/analysis9_cf_opt.ll", "llprograms/analysis9_dce_opt.ll"
-  ; "llprograms/analysis10_cf_opt.ll", "llprograms/analysis10_dce_opt.ll"
-  ; "llprograms/analysis11_cf_opt.ll", "llprograms/analysis11_dce_opt.ll"
-  ; "llprograms/analysis12_cf_opt.ll", "llprograms/analysis12_dce_opt.ll"
-  ; "llprograms/analysis13_cf_opt.ll", "llprograms/analysis13_dce_opt.ll"
-  ; "llprograms/analysis14_cf_opt.ll", "llprograms/analysis14_dce_opt.ll"
-  ; "llprograms/analysis15_cf_opt.ll", "llprograms/analysis15_dce_opt.ll"
-  ; "llprograms/analysis16_cf_opt.ll", "llprograms/analysis16_dce_opt.ll"
-  ; "llprograms/analysis17_cf_opt.ll", "llprograms/analysis17_dce_opt.ll"
-  ; "llprograms/analysis18_cf_opt.ll", "llprograms/analysis18_dce_opt.ll"
-  ; "llprograms/analysis19_cf_opt.ll", "llprograms/analysis19_dce_opt.ll"
+  [ "test/llprograms/analysis1_cf_opt.ll", "test/llprograms/analysis1_dce_opt.ll"
+  ; "test/llprograms/analysis2_cf_opt.ll", "test/llprograms/analysis2_dce_opt.ll"
+  ; "test/llprograms/analysis3_cf_opt.ll", "test/llprograms/analysis3_dce_opt.ll"
+  ; "test/llprograms/analysis4_cf_opt.ll", "test/llprograms/analysis4_dce_opt.ll"
+  ; "test/llprograms/analysis5_cf_opt.ll", "test/llprograms/analysis5_dce_opt.ll"
+  ; "test/llprograms/analysis6_cf_opt.ll", "test/llprograms/analysis6_dce_opt.ll"
+  ; "test/llprograms/analysis7_cf_opt.ll", "test/llprograms/analysis7_dce_opt.ll"
+  ; "test/llprograms/analysis8_cf_opt.ll", "test/llprograms/analysis8_dce_opt.ll"
+  ; "test/llprograms/analysis9_cf_opt.ll", "test/llprograms/analysis9_dce_opt.ll"
+  ; "test/llprograms/analysis10_cf_opt.ll", "test/llprograms/analysis10_dce_opt.ll"
+  ; "test/llprograms/analysis11_cf_opt.ll", "test/llprograms/analysis11_dce_opt.ll"
+  ; "test/llprograms/analysis12_cf_opt.ll", "test/llprograms/analysis12_dce_opt.ll"
+  ; "test/llprograms/analysis13_cf_opt.ll", "test/llprograms/analysis13_dce_opt.ll"
+  ; "test/llprograms/analysis14_cf_opt.ll", "test/llprograms/analysis14_dce_opt.ll"
+  ; "test/llprograms/analysis15_cf_opt.ll", "test/llprograms/analysis15_dce_opt.ll"
+  ; "test/llprograms/analysis16_cf_opt.ll", "test/llprograms/analysis16_dce_opt.ll"
+  ; "test/llprograms/analysis17_cf_opt.ll", "test/llprograms/analysis17_dce_opt.ll"
+  ; "test/llprograms/analysis18_cf_opt.ll", "test/llprograms/analysis18_dce_opt.ll"
+  ; "test/llprograms/analysis19_cf_opt.ll", "test/llprograms/analysis19_dce_opt.ll"
   ]
 
 let constprop_opt_tests =
-  [ "llprograms/analysis1.ll", "llprograms/analysis1_cf_opt.ll"
-  ; "llprograms/analysis2.ll", "llprograms/analysis2_cf_opt.ll"
-  ; "llprograms/analysis3.ll", "llprograms/analysis3_cf_opt.ll"
-  ; "llprograms/analysis4.ll", "llprograms/analysis4_cf_opt.ll"
-  ; "llprograms/analysis5.ll", "llprograms/analysis5_cf_opt.ll"
-  ; "llprograms/analysis6.ll", "llprograms/analysis6_cf_opt.ll"
-  ; "llprograms/analysis7.ll", "llprograms/analysis7_cf_opt.ll"
-  ; "llprograms/analysis8.ll", "llprograms/analysis8_cf_opt.ll"
-  ; "llprograms/analysis9.ll", "llprograms/analysis9_cf_opt.ll"
-  ; "llprograms/analysis10.ll", "llprograms/analysis10_cf_opt.ll"
-  ; "llprograms/analysis11.ll", "llprograms/analysis11_cf_opt.ll"
-  ; "llprograms/analysis12.ll", "llprograms/analysis12_cf_opt.ll"
-  ; "llprograms/analysis13.ll", "llprograms/analysis13_cf_opt.ll"
-  ; "llprograms/analysis14.ll", "llprograms/analysis14_cf_opt.ll"
-  ; "llprograms/analysis15.ll", "llprograms/analysis15_cf_opt.ll"
-  ; "llprograms/analysis16.ll", "llprograms/analysis16_cf_opt.ll"
-  ; "llprograms/analysis17.ll", "llprograms/analysis17_cf_opt.ll"
-  ; "llprograms/analysis18.ll", "llprograms/analysis18_cf_opt.ll"
-  ; "llprograms/analysis19.ll", "llprograms/analysis19_cf_opt.ll"
+  [ "test/llprograms/analysis1.ll", "test/llprograms/analysis1_cf_opt.ll"
+  ; "test/llprograms/analysis2.ll", "test/llprograms/analysis2_cf_opt.ll"
+  ; "test/llprograms/analysis3.ll", "test/llprograms/analysis3_cf_opt.ll"
+  ; "test/llprograms/analysis4.ll", "test/llprograms/analysis4_cf_opt.ll"
+  ; "test/llprograms/analysis5.ll", "test/llprograms/analysis5_cf_opt.ll"
+  ; "test/llprograms/analysis6.ll", "test/llprograms/analysis6_cf_opt.ll"
+  ; "test/llprograms/analysis7.ll", "test/llprograms/analysis7_cf_opt.ll"
+  ; "test/llprograms/analysis8.ll", "test/llprograms/analysis8_cf_opt.ll"
+  ; "test/llprograms/analysis9.ll", "test/llprograms/analysis9_cf_opt.ll"
+  ; "test/llprograms/analysis10.ll", "test/llprograms/analysis10_cf_opt.ll"
+  ; "test/llprograms/analysis11.ll", "test/llprograms/analysis11_cf_opt.ll"
+  ; "test/llprograms/analysis12.ll", "test/llprograms/analysis12_cf_opt.ll"
+  ; "test/llprograms/analysis13.ll", "test/llprograms/analysis13_cf_opt.ll"
+  ; "test/llprograms/analysis14.ll", "test/llprograms/analysis14_cf_opt.ll"
+  ; "test/llprograms/analysis15.ll", "test/llprograms/analysis15_cf_opt.ll"
+  ; "test/llprograms/analysis16.ll", "test/llprograms/analysis16_cf_opt.ll"
+  ; "test/llprograms/analysis17.ll", "test/llprograms/analysis17_cf_opt.ll"
+  ; "test/llprograms/analysis18.ll", "test/llprograms/analysis18_cf_opt.ll"
+  ; "test/llprograms/analysis19.ll", "test/llprograms/analysis19_cf_opt.ll"
   ]
 
 
