@@ -3,6 +3,7 @@ open X86_lib.X86
 include X86_lib 
 open Driver
 open Ll_lib.Ll
+include Ll_lib
 open Backend
 open Datastructures
 open Util
@@ -64,7 +65,7 @@ let execute_ll_file_with_output args path ans =
 
 let execute_oat_file_with_output (path, args, ans) =
   (oat_file_e2e_test (adj_path ^ path) args) = ans
-(* 
+
 let compile_with_config live regalloc ll_ast =
   let open Registers in
   let open Backend in
@@ -74,7 +75,7 @@ let compile_with_config live regalloc ll_ast =
   let (histogram,size) = histogram_of_prog asm_ast in
   histogram, size, asm_ast
 
-let assert_quality fn ll_ast =
+(* let assert_quality fn ll_ast =
   if not !pass_all then failwith "Your register allocator failed a correctness test" else
   let _ = Opt.do_opt := true in
   let ll_ast = Opt.optimize ll_ast in
@@ -100,14 +101,12 @@ let assert_quality_oat fn () =
   assert_quality fn ll_ast
 
 let quality_oat tests =
-  List.map (fun (fn, _, _) -> fn, assert_quality_oat fn) tests
-
-
+  List.map (fun (fn, _, _) -> fn, assert_quality_oat fn) tests *)
 
 let fdecl_of_path path =
   Platform.verb @@ Printf.sprintf "* processing file: %s\n" path;
   let ll_ast = parse_ll_file path in
-  match ll_ast.Ll.fdecls with
+  match ll_ast.fdecls with
   | [_, fdecl] -> fdecl
   | _ -> failwith "test expected one fdecl"
 
@@ -118,14 +117,16 @@ let ll_dfa_file_test path compare analyze expected =
   
 let throw_key_diff compare val_to_string a b =
   let keys = LblM.diff_keys compare a b in
-  if List.length keys == 0 then ()
+  if List.length keys == 0 then true
   else begin
     let str_a = LblM.to_string val_to_string a in
     let str_b = LblM.to_string val_to_string b in
-    failwith @@ Printf.sprintf "Output differs at labels: %s in maps\n%s\n%s\n"
-      (String.concat ", " keys)
-      str_a
-      str_b
+    print_string @@ 
+      Printf.sprintf "Output differs at labels: %s in maps\n%s\n%s\n"
+        (String.concat ", " keys)
+        str_a
+        str_b;
+    false
   end
     
 let ll_opt_file_test path optimize ans =
@@ -159,35 +160,33 @@ let dfa_constprop_file tests =
     ("constprop: " ^ path, 
       fun () -> ll_dfa_file_test path (throw_key_diff Fact.compare printer) analyze ans)) tests
 
-let opt_dce_file tests =
+let execute_opt_dce_file input output =
   let opt g =
     let ag = Alias.analyze g in
     let lg = Liveness.analyze g in
     let g = Dce.run lg ag g in
     g.Cfg.blocks
   in
-  List.map (fun (path, ans) ->
-      (Printf.sprintf "dce opt: %s, %s" 
-                      (Filename.basename path) (Filename.basename ans), 
-        fun () -> ll_opt_file_test path opt ans)) tests
+  ll_opt_file_test (adj_path ^ input) opt (adj_path ^ output)
 
-let opt_constfold_file tests =
+let execute_opt_constfold_file input output =
   let opt g =
     let cg = Constprop.analyze g in
     let g = Constprop.run cg g in
     g.Cfg.blocks
   in
-  List.map (fun (path, ans) ->
-      (Printf.sprintf "constprop opt: %s, %s" 
-                      (Filename.basename path) (Filename.basename ans), 
-        fun () -> ll_opt_file_test path opt ans)) tests
+  ll_opt_file_test (adj_path ^ input) opt (adj_path ^ output)
 
 (* this test harness is used for part iv of the homework -------------------- *)
 let executed_fullopt_file tests =
   let opt n g = let g = Opt.pass n g in g.Cfg.blocks in
   List.map (fun (n, path, ans) ->
       (Printf.sprintf "fullopt %d iterations: %s" n path,
-        fun () -> ll_opt_file_test path (opt n) ans)) tests *)
+        fun () -> ll_opt_file_test path (opt n) ans)) tests 
+
+(* 
+ * LLVM TESTS
+ *)
 
 (* binop_tests *)
 let%test _ = execute_ll_file_with_output "" "test/llprograms/add.ll" "14"
@@ -415,73 +414,48 @@ let%test _ = execute_oat_file_with_output ("test/hw5programs/length2.oat", "", "
 let%test _ = execute_oat_file_with_output ("test/hw5programs/initarr1.oat", "", "1")
 let%test _ = execute_oat_file_with_output ("test/hw5programs/initarr2.oat", "", "2")
 
-(* 
-let dce_opt_tests =
-  [ "test/llprograms/analysis1_cf_opt.ll", "test/llprograms/analysis1_dce_opt.ll"
-  ; "test/llprograms/analysis2_cf_opt.ll", "test/llprograms/analysis2_dce_opt.ll"
-  ; "test/llprograms/analysis3_cf_opt.ll", "test/llprograms/analysis3_dce_opt.ll"
-  ; "test/llprograms/analysis4_cf_opt.ll", "test/llprograms/analysis4_dce_opt.ll"
-  ; "test/llprograms/analysis5_cf_opt.ll", "test/llprograms/analysis5_dce_opt.ll"
-  ; "test/llprograms/analysis6_cf_opt.ll", "test/llprograms/analysis6_dce_opt.ll"
-  ; "test/llprograms/analysis7_cf_opt.ll", "test/llprograms/analysis7_dce_opt.ll"
-  ; "test/llprograms/analysis8_cf_opt.ll", "test/llprograms/analysis8_dce_opt.ll"
-  ; "test/llprograms/analysis9_cf_opt.ll", "test/llprograms/analysis9_dce_opt.ll"
-  ; "test/llprograms/analysis10_cf_opt.ll", "test/llprograms/analysis10_dce_opt.ll"
-  ; "test/llprograms/analysis11_cf_opt.ll", "test/llprograms/analysis11_dce_opt.ll"
-  ; "test/llprograms/analysis12_cf_opt.ll", "test/llprograms/analysis12_dce_opt.ll"
-  ; "test/llprograms/analysis13_cf_opt.ll", "test/llprograms/analysis13_dce_opt.ll"
-  ; "test/llprograms/analysis14_cf_opt.ll", "test/llprograms/analysis14_dce_opt.ll"
-  ; "test/llprograms/analysis15_cf_opt.ll", "test/llprograms/analysis15_dce_opt.ll"
-  ; "test/llprograms/analysis16_cf_opt.ll", "test/llprograms/analysis16_dce_opt.ll"
-  ; "test/llprograms/analysis17_cf_opt.ll", "test/llprograms/analysis17_dce_opt.ll"
-  ; "test/llprograms/analysis18_cf_opt.ll", "test/llprograms/analysis18_dce_opt.ll"
-  ; "test/llprograms/analysis19_cf_opt.ll", "test/llprograms/analysis19_dce_opt.ll"
-  ]
+(*
+ * DCE TESTS
+ *)
 
-let constprop_opt_tests =
-  [ "test/llprograms/analysis1.ll", "test/llprograms/analysis1_cf_opt.ll"
-  ; "test/llprograms/analysis2.ll", "test/llprograms/analysis2_cf_opt.ll"
-  ; "test/llprograms/analysis3.ll", "test/llprograms/analysis3_cf_opt.ll"
-  ; "test/llprograms/analysis4.ll", "test/llprograms/analysis4_cf_opt.ll"
-  ; "test/llprograms/analysis5.ll", "test/llprograms/analysis5_cf_opt.ll"
-  ; "test/llprograms/analysis6.ll", "test/llprograms/analysis6_cf_opt.ll"
-  ; "test/llprograms/analysis7.ll", "test/llprograms/analysis7_cf_opt.ll"
-  ; "test/llprograms/analysis8.ll", "test/llprograms/analysis8_cf_opt.ll"
-  ; "test/llprograms/analysis9.ll", "test/llprograms/analysis9_cf_opt.ll"
-  ; "test/llprograms/analysis10.ll", "test/llprograms/analysis10_cf_opt.ll"
-  ; "test/llprograms/analysis11.ll", "test/llprograms/analysis11_cf_opt.ll"
-  ; "test/llprograms/analysis12.ll", "test/llprograms/analysis12_cf_opt.ll"
-  ; "test/llprograms/analysis13.ll", "test/llprograms/analysis13_cf_opt.ll"
-  ; "test/llprograms/analysis14.ll", "test/llprograms/analysis14_cf_opt.ll"
-  ; "test/llprograms/analysis15.ll", "test/llprograms/analysis15_cf_opt.ll"
-  ; "test/llprograms/analysis16.ll", "test/llprograms/analysis16_cf_opt.ll"
-  ; "test/llprograms/analysis17.ll", "test/llprograms/analysis17_cf_opt.ll"
-  ; "test/llprograms/analysis18.ll", "test/llprograms/analysis18_cf_opt.ll"
-  ; "test/llprograms/analysis19.ll", "test/llprograms/analysis19_cf_opt.ll"
-  ]
+(* dce_opt_tests *)
+let%test _ = execute_opt_dce_file "test/llprograms/analysis1_cf_opt.ll" "test/llprograms/analysis1_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis2_cf_opt.ll" "test/llprograms/analysis2_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis3_cf_opt.ll" "test/llprograms/analysis3_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis4_cf_opt.ll" "test/llprograms/analysis4_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis5_cf_opt.ll" "test/llprograms/analysis5_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis6_cf_opt.ll" "test/llprograms/analysis6_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis7_cf_opt.ll" "test/llprograms/analysis7_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis8_cf_opt.ll" "test/llprograms/analysis8_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis9_cf_opt.ll" "test/llprograms/analysis9_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis10_cf_opt.ll" "test/llprograms/analysis10_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis11_cf_opt.ll" "test/llprograms/analysis11_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis12_cf_opt.ll" "test/llprograms/analysis12_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis13_cf_opt.ll" "test/llprograms/analysis13_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis14_cf_opt.ll" "test/llprograms/analysis14_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis15_cf_opt.ll" "test/llprograms/analysis15_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis16_cf_opt.ll" "test/llprograms/analysis16_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis17_cf_opt.ll" "test/llprograms/analysis17_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis18_cf_opt.ll" "test/llprograms/analysis18_dce_opt.ll"
+let%test _ = execute_opt_dce_file "test/llprograms/analysis19_cf_opt.ll" "test/llprograms/analysis19_dce_opt.ll"
 
-
-let tests : suite =
-  [
-  GradedTest("solver / liveness analysis tests", 10, dfa_liveness_file liveness_analysis_tests);
-  GradedTest("alias analysis tests", 10, dfa_alias_file alias_analysis_tests);
-  GradedTest("dce optimization tests", 10, opt_dce_file dce_opt_tests);
-  GradedTest("constprop analysis tests", 15, dfa_constprop_file constprop_analysis_tests);
-  GradedTest("constprop optimization tests", 10, opt_constfold_file constprop_opt_tests);
-  Test("ll regalloc correctness tests", pass_all_executed_ll_file ll_tests);
-  Test("oat regalloc correctness tests", execute_oat_file_with_output (oat_correctness_tests @ regalloc_challenge_tests));
-  GradedTest("oat regalloc quality tests", 35, quality_oat oat_regalloc_quality_tests);
-  ]
-
-let manual_tests : suite = [
-    GradedTest ("Posted Piazza Test Case", 5,
-              [("manually", assert_eq true false)]
-    )
-  ; GradedTest ("Performance Comparison", 5,
-              [("manually", assert_eq true false)]
-    )
-  ]
-
-let graded_tests : suite =
-  tests @
-  manual_tests *)
+(* constprop_opt_tests *)
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis1.ll" "test/llprograms/analysis1_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis2.ll" "test/llprograms/analysis2_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis3.ll" "test/llprograms/analysis3_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis4.ll" "test/llprograms/analysis4_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis5.ll" "test/llprograms/analysis5_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis6.ll" "test/llprograms/analysis6_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis7.ll" "test/llprograms/analysis7_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis8.ll" "test/llprograms/analysis8_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis9.ll" "test/llprograms/analysis9_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis10.ll" "test/llprograms/analysis10_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis11.ll" "test/llprograms/analysis11_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis12.ll" "test/llprograms/analysis12_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis13.ll" "test/llprograms/analysis13_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis14.ll" "test/llprograms/analysis14_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis15.ll" "test/llprograms/analysis15_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis16.ll" "test/llprograms/analysis16_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis17.ll" "test/llprograms/analysis17_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis18.ll" "test/llprograms/analysis18_cf_opt.ll"
+let%test _ = execute_opt_constfold_file "test/llprograms/analysis19.ll" "test/llprograms/analysis19_cf_opt.ll"
