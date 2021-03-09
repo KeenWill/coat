@@ -58,7 +58,7 @@ let oat_file_e2e_test path args =
   let oat_ast = parse_oat_file path in
   Typechecker.typecheck_program oat_ast;
   let ll_ast = Frontend.cmp_prog oat_ast in
-  exec_ll_ast path ll_ast args [adj_path ^ "runtime.c"]
+  exec_ll_ast path ll_ast args [adj_path ^ "include/runtime.c"]
 
 let execute_ll_file_with_output args path ans =
   (exec_ll_file (adj_path ^ path) args) = ans
