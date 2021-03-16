@@ -1,7 +1,10 @@
 name: Build Coat Deps Docker Image
 
 on:
-  - push
+  push:
+    paths:
+      - coatc.opam
+      - coat_deps.dockerfile
 
 jobs:
   deps:
