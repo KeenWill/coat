@@ -25,7 +25,7 @@ jobs:
           git config --global user.email github-actions-bot@users.noreply.github.com
 
       - name: Install Dependencies
-        run: opam install dune
+        run: opam install . --deps-only
 
       - name: Build & Test
         run: opam exec dune build @install @runtest
