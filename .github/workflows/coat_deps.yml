@@ -4,7 +4,7 @@ on:
   - push
 
 jobs:
-  build:
+  deps:
     strategy:
       fail-fast: false
 
