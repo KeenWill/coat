@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include <channels.h>
+#include "channels.h"
 
 /* Oat Internal Functions --------------------------------------------------- */
 
