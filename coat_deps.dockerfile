@@ -1,4 +1,4 @@
-FROM williamgoeller/ocaml-docker:alpine
+FROM williamgoeller/ocaml-docker:alpine-amd64
 
 RUN mkdir /coat_deps
 WORKDIR /coat_deps
