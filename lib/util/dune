@@ -1,4 +1,3 @@
 (library
  (name util)
- (modules assert platform range)
-)
+ (modules assert platform range))

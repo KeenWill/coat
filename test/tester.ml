@@ -133,7 +133,7 @@ let throw_key_diff compare val_to_string a b =
     let str_b = LblM.to_string val_to_string b in
     print_string
     @@ Printf.sprintf "Output differs at labels: %s in maps\n%s\n%s\n"
-      (String.concat ", " keys) str_a str_b;
+         (String.concat ", " keys) str_a str_b;
     false
 
 let ll_opt_file_test path optimize ans =
@@ -153,11 +153,11 @@ let dfa_liveness_file (tests : (string * 'a Datastructures.LblM.t) list) =
   in
   List.map
     (fun (path, ans) ->
-       ( "liveness: " ^ path,
-         fun () ->
-           ll_dfa_file_test path
-             (throw_key_diff Fact.compare printer)
-             analyze ans ))
+      ( "liveness: " ^ path,
+        fun () ->
+          ll_dfa_file_test path
+            (throw_key_diff Fact.compare printer)
+            analyze ans ))
     tests
 
 let dfa_alias_file tests =
@@ -168,11 +168,11 @@ let dfa_alias_file tests =
   in
   List.map
     (fun (path, ans) ->
-       ( "alias: " ^ path,
-         fun () ->
-           ll_dfa_file_test path
-             (throw_key_diff Fact.compare printer)
-             analyze ans ))
+      ( "alias: " ^ path,
+        fun () ->
+          ll_dfa_file_test path
+            (throw_key_diff Fact.compare printer)
+            analyze ans ))
     tests
 
 let dfa_constprop_file tests =
@@ -183,11 +183,11 @@ let dfa_constprop_file tests =
   in
   List.map
     (fun (path, ans) ->
-       ( "constprop: " ^ path,
-         fun () ->
-           ll_dfa_file_test path
-             (throw_key_diff Fact.compare printer)
-             analyze ans ))
+      ( "constprop: " ^ path,
+        fun () ->
+          ll_dfa_file_test path
+            (throw_key_diff Fact.compare printer)
+            analyze ans ))
     tests
 
 let execute_opt_dce_file input output =
@@ -215,8 +215,8 @@ let executed_fullopt_file tests =
   in
   List.map
     (fun (n, path, ans) ->
-       ( Printf.sprintf "fullopt %d iterations: %s" n path,
-         fun () -> ll_opt_file_test path (opt n) ans ))
+      ( Printf.sprintf "fullopt %d iterations: %s" n path,
+        fun () -> ll_opt_file_test path (opt n) ans ))
     tests
 
 (*

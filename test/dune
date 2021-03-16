@@ -1,6 +1,6 @@
-( library
-  (name tester)
-  (inline_tests)
-  (preprocess (pps ppx_inline_test))
-  (libraries driver ll_lib ast_lib x86_lib backend frontend util)
-)
+(library
+ (name tester)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test))
+ (libraries driver ll_lib ast_lib x86_lib backend frontend util))

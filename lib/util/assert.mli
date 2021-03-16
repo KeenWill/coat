@@ -36,9 +36,7 @@ val timeout_suite : int -> suite -> suite
 (***************************)
 (* Generating Test Results *)
 
-type result =
-  | Pass
-  | Fail of string
+type result = Pass | Fail of string
 
 type outcome = result test list
 
