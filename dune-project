@@ -7,7 +7,7 @@
 
 (package
  (name coatc)
- (synopsis "Oat")
+ (synopsis "coatc")
  (depends
   (dune (>= 2.5))
   (ocaml (>= 4.10.0))
