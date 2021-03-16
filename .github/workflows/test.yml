@@ -1,7 +1,9 @@
 name: Build & Test
 
 on:
-  - push
+  push:
+    paths:
+      - coatc.opam
 
 jobs:
   build:
