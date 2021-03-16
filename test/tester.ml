@@ -15,7 +15,9 @@ let adj_path = "../../../"
 let runtime_files =
   List.map (fun s -> adj_path ^ s) [ "include/runtime.c"; "include/channels.c" ]
 
-let _ = Platform.configure_os ()
+let _ =
+  Platform.configure_os ();
+  Platform.create_output_dir ()
 
 let exec_ll_ast path ll_ast args extra_files =
   let () = Platform.verb @@ Printf.sprintf "** exec_ll_ast: %s\n" path in
