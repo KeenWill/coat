@@ -12,8 +12,6 @@
   (dune (>= 2.5))
   (ocaml (>= 4.10.0))
   num
-  str
-  unix
   (ppx_inline_test :with-test)
  )
 )
