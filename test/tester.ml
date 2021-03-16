@@ -17,7 +17,7 @@ let runtime_files =
 
 let _ =
   Platform.configure_os ();
-  Platform.create_output_dir ()
+  Platform.create_output_dir adj_path
 
 let exec_ll_ast path ll_ast args extra_files =
   let () = Platform.verb @@ Printf.sprintf "** exec_ll_ast: %s\n" path in

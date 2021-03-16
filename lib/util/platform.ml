@@ -81,11 +81,12 @@ let enable_verbose () =
   verb_os ()
 
 (* create the output directory, which is assumed to exist *)
-let create_output_dir () =
-  try ignore (stat !output_path)
+let create_output_dir adj_path =
+  let full_path = adj_path ^ !output_path in
+  try ignore (stat full_path)
   with Unix_error (ENOENT, _, _) ->
-    verb @@ Printf.sprintf "creating output directory: %s\n" !output_path;
-    mkdir !output_path 0o755
+    verb @@ Printf.sprintf "creating output directory: %s\n" full_path;
+    mkdir full_path 0o755
 
 (* clang invocation stuff --------------------------------------------------- *)
 let common_flags = "-Wno-override-module"

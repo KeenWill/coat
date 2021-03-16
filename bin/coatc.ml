@@ -55,7 +55,7 @@ let files = ref []
 
 let _ =
   Platform.configure_os ();
-  Platform.create_output_dir ();
+  Platform.create_output_dir "";
   try
     Arg.parse args
       (fun filename -> files := filename :: !files)
