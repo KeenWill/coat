@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - coatc.opam
+      - coat_deps.dockerfile
 
 jobs:
   build:
