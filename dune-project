@@ -12,6 +12,7 @@
   (dune (>= 2.5))
   (ocaml (>= 4.10.0))
   num
+  menhir
   (ppx_inline_test :with-test)
  )
 )
