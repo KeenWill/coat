@@ -1,11 +1,11 @@
-(ocamllex (modules lllexer))
+(ocamllex
+ (modules lllexer))
 
-(menhir 
-    (flags --explain)
-    (modules llparser))
+(menhir
+ (flags --explain)
+ (modules llparser))
 
 (library
  (name ll_lib)
  (modules ll llinterp llutil llparser lllexer)
- (libraries util)
-)
+ (libraries util))

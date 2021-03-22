@@ -21,49 +21,54 @@ open Datastructures
      in[n] = combine preds[n] (out[n])
 
 *)
-module type DFA_GRAPH =
-  sig
-    module NodeS : SetS
+module type DFA_GRAPH = sig
+  module NodeS : SetS
 
-    (* type of nodes in this graph *)
-    type node = NodeS.elt
+  (* type of nodes in this graph *)
+  type node = NodeS.elt
 
-    (* dataflow facts associated with the out-edges of the nodes in the graph *)
-    type fact
+  (* dataflow facts associated with the out-edges of the nodes in the graph *)
+  type fact
 
-    (* the abstract type of dataflow graphs *)
-    type t
-    val preds : t -> node -> NodeS.t
-    val succs : t -> node -> NodeS.t
-    val nodes : t -> NodeS.t
+  (* the abstract type of dataflow graphs *)
+  type t
 
-    (* the flow function:
-       given a graph node and input fact, compute the resulting fact on the 
-       output edge of the node                                                
-    *)
-    val flow : t -> node -> fact -> fact
+  val preds : t -> node -> NodeS.t
 
-    (* lookup / modify the dataflow annotations associated with a node *)    
-    val out : t -> node -> fact
-    val add_fact : node -> fact -> t -> t
+  val succs : t -> node -> NodeS.t
 
-    (* printing *)
-    val to_string : t -> string
-    val printer : Format.formatter -> t -> unit
-  end
+  val nodes : t -> NodeS.t
+
+  (* the flow function:
+     given a graph node and input fact, compute the resulting fact on the
+     output edge of the node
+  *)
+  val flow : t -> node -> fact -> fact
+
+  (* lookup / modify the dataflow annotations associated with a node *)
+  val out : t -> node -> fact
+
+  val add_fact : node -> fact -> t -> t
+
+  (* printing *)
+  val to_string : t -> string
+
+  val printer : Format.formatter -> t -> unit
+end
 
 (* abstract dataflow lattice signature -------------------------------------- *)
 (* The general algorithm works over a generic lattice of abstract "facts".
     - facts can be combined (this is the 'meet' operation)
     - facts can be compared                                                   *)
-module type FACT =
-  sig
-    type t
-    val combine : t list -> t
-    val compare : t -> t -> int
-    val to_string : t -> string
-  end
+module type FACT = sig
+  type t
 
+  val combine : t list -> t
+
+  val compare : t -> t -> int
+
+  val to_string : t -> string
+end
 
 (* generic iterative dataflow solver ---------------------------------------- *)
 (* This functor takes two modules:
@@ -85,28 +90,27 @@ module type FACT =
 
    TASK: complete the [solve] function, which implements the above algorithm.
 *)
-module Make (Fact : FACT) (Graph : DFA_GRAPH with type fact := Fact.t) =
-  struct
+module Make (Fact : FACT) (Graph : DFA_GRAPH with type fact := Fact.t) = struct
+  let solve (g : Graph.t) : Graph.t =
+    (* I feel dirty using mutability *)
+    let w : Graph.NodeS.t ref = ref (Graph.nodes g) in
+    let g : Graph.t ref = ref g in
+    while not (Graph.NodeS.is_empty !w) do
+      let n = Graph.NodeS.choose !w in
+      w := Graph.NodeS.remove n !w;
 
-    let solve (g:Graph.t) : Graph.t =
-      (* I feel dirty using mutability *)
-      let w : Graph.NodeS.t ref = ref (Graph.nodes g) in
-      let g : Graph.t ref = ref g in
-      while not(Graph.NodeS.is_empty !w) do
-        let n = Graph.NodeS.choose !w in
-        w := Graph.NodeS.remove n !w ;
+      let predecessors = Graph.preds !g n in
+      let pred_facts =
+        Graph.NodeS.fold (fun x acc -> Graph.out !g x :: acc) predecessors []
+      in
+      let combined_fact = Fact.combine pred_facts in
 
-        let predecessors = Graph.preds !g n in
-        let pred_facts = Graph.NodeS.fold (fun x acc -> (Graph.out !g x) :: acc) predecessors [] in
-        let combined_fact = Fact.combine pred_facts in
+      let old_out = Graph.out !g n in
+      let new_out = Graph.flow !g n combined_fact in
 
-        let old_out = Graph.out !g n in
-        let new_out = Graph.flow !g n combined_fact in
-
-        if Fact.compare old_out new_out <> 0 then
-          w := Graph.NodeS.union !w (Graph.succs !g n) ; 
-        g := Graph.add_fact n new_out !g
-      done ; 
-      !g
-  end
-
+      if Fact.compare old_out new_out <> 0 then
+        w := Graph.NodeS.union !w (Graph.succs !g n);
+      g := Graph.add_fact n new_out !g
+    done;
+    !g
+end

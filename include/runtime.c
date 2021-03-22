@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "channels.h"
+
 /* Oat Internal Functions --------------------------------------------------- */
 
 int64_t* oat_malloc(int64_t size) {

@@ -1,4 +1,3 @@
 (library
  (name frontend)
- (libraries ll_lib datastructures ast_lib typechecker)
-)
+ (libraries ll_lib datastructures ast_lib typechecker))

@@ -1,4 +1,3 @@
 (library
  (name typechecker)
- (libraries ast_lib)
-)
+ (libraries ast_lib))

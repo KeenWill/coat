@@ -2,5 +2,4 @@
  (name coatc)
  (public_name coatc)
  (libraries driver)
- (modes exe)
-)
+ (modes exe))

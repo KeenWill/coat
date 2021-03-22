@@ -1,0 +1,29 @@
+name: Build Coat Deps Docker Image
+
+on:
+  push:
+    paths:
+      - coatc.opam
+      - coat_deps.dockerfile
+
+jobs:
+  deps:
+    strategy:
+      fail-fast: false
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: williamgoeller
+          password: ${{ secrets.DOCKERHUB_TOKEN }} 
+
+      - name: Build Coat Docker Image
+        run: | 
+          docker build -t williamgoeller/coat:deps-only --file coat_deps.dockerfile .
+          docker push williamgoeller/coat:deps-only

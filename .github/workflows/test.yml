@@ -1,0 +1,21 @@
+name: Build & Test
+
+on:
+  - push
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Coat Docker Image
+        run: docker build -t coat .
+
+      - name: Run Coat Docker Image
+        run: docker run coat

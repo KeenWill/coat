@@ -1,4 +1,3 @@
 (library
  (name datastructures)
- (libraries ll_lib)
-)
+ (libraries ll_lib))

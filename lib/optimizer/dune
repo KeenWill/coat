@@ -1,5 +1,4 @@
 (library
  (name optimizer)
  (modules opt liveness solver dce constprop alias cfg)
- (libraries datastructures ll_lib)
-)
+ (libraries datastructures ll_lib))
