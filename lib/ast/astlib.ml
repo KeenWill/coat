@@ -61,6 +61,21 @@ let rec print_list_aux fmt sep pp l =
 let rec print_ty_aux fmt t =
   let pps = pp_print_string fmt in
   match t with
+  | TRegTy regty -> print_regty_aux fmt regty
+  | TLinTy (TChan (ty, m1, m2)) ->
+      pps "chan<";
+      print_ty_aux fmt ty;
+      print_mult_aux fmt m1;
+      print_mult_aux fmt m2;
+      pps ">"
+
+and print_mult_aux fmt t =
+  let pps = pp_print_string fmt in
+  match t with MNum i -> pps (Int64.to_string i) | MArb -> pps "*"
+
+and print_regty_aux fmt t =
+  let pps = pp_print_string fmt in
+  match t with
   | TBool -> pps "bool"
   | TInt -> pps "int"
   | TRef r -> print_rty_aux fmt r
@@ -297,7 +312,7 @@ and print_stmt_aux fmt s =
       pps ") ";
       print_block_aux fmt body
 
-let print_fdecl_aux fmt { elt = { frtyp; fname; args; body } } =
+let print_fdecl_aux fmt { elt = { frtyp; fname; args; body }; _ } =
   let pps = pp_print_string fmt in
   let ppsp = pp_print_space fmt in
   let ppnl = pp_force_newline fmt in
@@ -417,6 +432,16 @@ let ml_string_of_node (f : 'a -> string) ({ elt; loc } : 'a node) =
   sp "{ elt = %s; loc = %s }" (f elt) (Range.ml_string_of_range loc)
 
 let rec ml_string_of_ty (t : ty) : string =
+  match t with
+  | TRegTy regty -> ml_string_of_regty regty
+  | TLinTy (TChan (ty, m1, m2)) ->
+      sp "TChan (%s, %s, %s)" (ml_string_of_ty ty) (ml_string_of_mult m1)
+        (ml_string_of_mult m2)
+
+and ml_string_of_mult (m : mult) : string =
+  match m with MNum i -> Int64.to_string i | MArb -> "*"
+
+and ml_string_of_regty (t : regty) : string =
   match t with
   | TBool -> "TBool"
   | TInt -> "TInt"

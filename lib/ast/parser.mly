@@ -24,6 +24,7 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token WHILE    /* while */
 %token RETURN   /* return */
 %token VAR      /* var */
+%token CHAN     /* chan */
 %token STRUCT   /* struct */
 %token SEMI     /* ; */
 %token COMMA    /* , */
@@ -118,12 +119,17 @@ decl_field:
 arglist:
   | l=separated_list(COMMA, pair(ty,IDENT)) { l }
     
-ty:
-  | TINT   { TInt }
-  | r=rtyp { TRef r } %prec LOW
-  | r=rtyp QUESTION { TNullRef r }
-  | LPAREN t=ty RPAREN { t } 
-  | TBOOL  { TBool } 
+ty: 
+  | CHAN LT t=ty m1=mult m2=mult GT { TLinTy (TChan (t, m1, m2)) }
+  | TINT   { TRegTy TInt }
+  | r=rtyp { TRegTy (TRef r) } %prec LOW
+  | r=rtyp QUESTION { TRegTy (TNullRef r) }
+  | TBOOL  { TRegTy TBool } 
+  | LPAREN t=ty RPAREN { t }
+
+%inline mult:
+  | i=INT { MNum i }
+  | STAR { MArb }
 
 %inline ret_ty:
   | TVOID  { RetVoid }

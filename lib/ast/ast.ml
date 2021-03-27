@@ -8,7 +8,14 @@ let no_loc x = { elt = x; loc = Range.norange }
 
 type id = string
 
-type ty = TBool | TInt | TRef of rty | TNullRef of rty
+type ty = TRegTy of regty | TLinTy of lty
+
+and lty = TChan of ty * mult * mult
+
+(* multiplicity of usage: 0, 1, arbitrary *)
+and mult = MNum of int64 | MArb
+
+and regty = TBool | TInt | TRef of rty | TNullRef of rty
 
 and rty = RString | RStruct of id | RArray of ty | RFun of ty list * ret_ty
 
@@ -39,6 +46,10 @@ type exp =
   | CBool of bool
   | CInt of int64
   | CStr of string
+  | CMakeChan of ty * mult * mult
+  | CSendChan of exp node * exp node
+  | CRecvChan of exp node
+  | CSpawn of exp node list * exp node list list
   | Id of id
   | CArr of ty * exp node list
   | NewArr of ty * exp node
