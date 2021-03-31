@@ -64,6 +64,12 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token ARROW    /* -> */
 %token QUESTION /* ? */
 
+%token MAKECHAN
+%token SENDCHAN
+%token RECVCHAN
+%token SPAWN
+%token JOIN
+
 %left IOR
 %left IAND
 %left BAR
@@ -212,7 +218,21 @@ exp:
   | u=uop e=exp         { loc $startpos $endpos @@ Uop (u, e) }
   | LENGTH LPAREN e=exp RPAREN
                         { loc $startpos $endpos @@ Length(e) }
+  | MAKECHAN LT t=ty m1=mult m2=mult GT LPAREN RPAREN
+                        { loc $startpos $endpos @@ CMakeChan (t, m1, m2)  }
+  | SENDCHAN LPAREN e1=exp COMMA e2=exp RPAREN
+                        { loc $startpos $endpos @@ CSendChan (e1, e2) }
+  | RECVCHAN LPAREN e=exp RPAREN
+                        { loc $startpos $endpos @@ CRecvChan (e) }
+  | SPAWN LPAREN LBRACKET cs1=separated_list(COMMA, exp) RBRACKET
+    COMMA LBRACKET cs2=separated_list(COMMA, spawn_args)
+    RBRACKET RPAREN
+                        { loc $startpos $endpos @@ CSpawn(cs1, cs2) }
+  | JOIN LPAREN e=exp RPAREN { loc $startpos $endpos @@ CJoin (e) }
   | LPAREN e=exp RPAREN { e } 
+
+%inline spawn_args:
+  | LPAREN a=separated_list(COMMA, exp) RPAREN { a }
 
 field:
   | id=IDENT EQ e=exp { (id, e) }
