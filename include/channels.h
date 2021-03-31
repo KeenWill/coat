@@ -22,7 +22,9 @@ typedef struct Channel {
 } channel_ty;
 
 int64_t *chan_create();
-void chan_send(channel_ty *handle, int64_t *val);
+int64_t chan_send(channel_ty *handle, int64_t *val);
 int64_t *chan_recv(channel_ty *handle);
+int64_t thread_spawn(void *fptr(void *), void *args);
+int64_t thread_join(int64_t tid);
 
 #endif // __CHANNELS_H_

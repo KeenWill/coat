@@ -60,7 +60,7 @@ int64_t *chan_create() {
   return (int64_t *)chn;
 }
 
-void chan_send(channel_ty *handle, int64_t *val) {
+int64_t chan_send(channel_ty *handle, int64_t *val) {
   if (pthread_mutex_lock(&(handle->lock)) != 0) {
     perror("chan_send mutex lock: ");
     exit(1);
@@ -75,6 +75,8 @@ void chan_send(channel_ty *handle, int64_t *val) {
     exit(1);
   }
   pthread_cond_signal(&(handle->available));
+
+  return 0;
 }
 
 int64_t *chan_recv(channel_ty *handle) {
@@ -95,4 +97,15 @@ int64_t *chan_recv(channel_ty *handle) {
       pthread_cond_wait(&(handle->available), &(handle->lock));
     }
   }
+}
+
+int64_t thread_spawn(void *fptr(void *), void *args) {
+  pthread_t tid;
+  pthread_create(&tid, NULL, fptr, args);
+  return (int64_t)tid;
+}
+
+int64_t thread_join(int64_t tid) {
+  pthread_join((pthread_t)tid, NULL);
+  return 0;
 }
