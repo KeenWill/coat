@@ -1,0 +1,28 @@
+void server(chan<chan<int, 1, 1>, *, *> c) {
+  var i = 10;
+  while (i > 0) {
+    i = i - 1;
+    var r = recvchan(c);
+    var res = sendchan(r, 1);
+  }
+}
+
+void client_send(chan<chan<int, 1, 1>, *,* > c, chan<int, 1, 0> r) {
+  var res = sendchan(c, r);
+}
+
+void client_wait(chan<int, 0, 1> r) {
+  var res = recvchan(r);
+}
+
+void client(chan<chan<int, 1, 1>, *,* > c) {
+  var r = makechan<int, 1, 1>();
+  var thread_group = spawn([client_send, client_wait], [(c, r), (r)]);
+  var res = join(thread_group);
+}
+
+int program(int argc, string[] argv) {
+  var c = makechan<chan<int, 1, 1>, *, *>();
+  var thread_group = spawn([server, client, client], [(c), (c), (c)]);
+  var res = join(thread_group);
+}
