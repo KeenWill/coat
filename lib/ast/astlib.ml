@@ -190,7 +190,45 @@ and print_exp_aux level fmt e =
           pps "; ")
         l;
       pps "}";
-      pp_close_box fmt ());
+      pp_close_box fmt ()
+  | CMakeChan (ty, m1, m2) ->
+      pps "makechan<";
+      print_ty_aux fmt ty;
+      pps ",";
+      print_mult_aux fmt m1;
+      pps ",";
+      print_mult_aux fmt m2;
+      pps ">()"
+  | CSendChan (exp1, exp2) ->
+      pps "sendchan(";
+      print_exp_aux this_level fmt exp1;
+      pps ",";
+      print_exp_aux this_level fmt exp2;
+      pps ")"
+  | CRecvChan exp ->
+      pps "recvchan(";
+      print_exp_aux this_level fmt exp;
+      pps ")"
+  | CSpawn (fptrs, args) ->
+      pps "spawn([";
+      print_list_aux fmt (fun () -> pps ", ") (print_exp_aux this_level) fptrs;
+      pps "], ";
+      pps "[";
+      print_list_aux fmt
+        (fun () -> pps ", ")
+        (fun fmt expl ->
+          pps "(";
+          print_list_aux fmt
+            (fun () -> pps ", ")
+            (print_exp_aux this_level) expl;
+          pps ")")
+        args;
+      pps "])"
+  | CJoin exp ->
+      pps "join(";
+      print_exp_aux this_level fmt exp;
+      pps ")");
+
   if this_level < level then pps ")"
 
 and print_cfield_aux l fmt (name, exp) =
@@ -515,6 +553,17 @@ let rec ml_string_of_exp_aux (e : exp) : string =
         (ml_string_of_exp e2)
   | Uop (u, e) -> sp "Uop (%s, %s)" (ml_string_of_unop u) (ml_string_of_exp e)
   | Length e -> sp "Length (%s)" (ml_string_of_exp e)
+  | CMakeChan (ty, m1, m2) ->
+      sp "CMakeChan (%s, %s, %s)" (ml_string_of_ty ty) (ml_string_of_mult m1)
+        (ml_string_of_mult m2)
+  | CSendChan (exp1, exp2) ->
+      sp "CSendChan (%s, %s)" (ml_string_of_exp exp1) (ml_string_of_exp exp2)
+  | CRecvChan exp -> sp "CRecvChan %s" (ml_string_of_exp exp)
+  | CSpawn (fptrs, args) ->
+      sp "CSpawn (%s, %s)"
+        (ml_string_of_list ml_string_of_exp fptrs)
+        (ml_string_of_list (ml_string_of_list ml_string_of_exp) args)
+  | CJoin exp -> sp "CJoin %s" (ml_string_of_exp exp)
 
 and ml_string_of_exp (e : exp node) : string =
   ml_string_of_node ml_string_of_exp_aux e
