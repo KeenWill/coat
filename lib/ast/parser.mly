@@ -126,7 +126,7 @@ arglist:
   | l=separated_list(COMMA, pair(ty,IDENT)) { l }
     
 ty: 
-  | CHAN LT t=ty m1=mult m2=mult GT { TLinTy (TChan (t, m1, m2)) }
+  | CHAN LT t=ty COMMA m1=mult COMMA m2=mult GT { TLinTy (TChan (t, m1, m2)) }
   | TINT   { TRegTy TInt }
   | r=rtyp { TRegTy (TRef r) } %prec LOW
   | r=rtyp QUESTION { TRegTy (TNullRef r) }
@@ -218,7 +218,7 @@ exp:
   | u=uop e=exp         { loc $startpos $endpos @@ Uop (u, e) }
   | LENGTH LPAREN e=exp RPAREN
                         { loc $startpos $endpos @@ Length(e) }
-  | MAKECHAN LT t=ty m1=mult m2=mult GT LPAREN RPAREN
+  | MAKECHAN LT t=ty COMMA m1=mult COMMA m2=mult GT LPAREN RPAREN
                         { loc $startpos $endpos @@ CMakeChan (t, m1, m2)  }
   | SENDCHAN LPAREN e1=exp COMMA e2=exp RPAREN
                         { loc $startpos $endpos @@ CSendChan (e1, e2) }
