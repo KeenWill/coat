@@ -7,11 +7,11 @@ void server(chan<chan<int, 1, 1>, *, *> c) {
   }
 }
 
-void client_send(chan<chan<int, 1, 1>, *,* > c, chan<int, 1, 0> r) {
+void client_send(chan<chan<int, 1, 1>, *,* > c, chan<int, 0, 1> r) {
   var res = sendchan(c, r);
 }
 
-void client_wait(chan<int, 0, 1> r) {
+void client_wait(chan<int, 1, 0> r) {
   var res = recvchan(r);
 }
 

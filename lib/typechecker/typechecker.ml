@@ -15,27 +15,34 @@ let type_error (l : 'a node) err =
 (* The Oat types of the Oat built-in functions *)
 let builtins =
   [
-    ("array_of_string", ([ TRef RString ], RetVal (TRef (RArray TInt))));
-    ("string_of_array", ([ TRef (RArray TInt) ], RetVal (TRef RString)));
-    ("length_of_string", ([ TRef RString ], RetVal TInt));
-    ("string_of_int", ([ TInt ], RetVal (TRef RString)));
-    ("string_cat", ([ TRef RString; TRef RString ], RetVal (TRef RString)));
-    ("print_string", ([ TRef RString ], RetVoid));
-    ("print_int", ([ TInt ], RetVoid));
-    ("print_bool", ([ TBool ], RetVoid));
+    ( "array_of_string",
+      ([ TRegTy (TRef RString) ], RetVal (TRegTy (TRef (RArray (TRegTy TInt)))))
+    );
+    ( "string_of_array",
+      ([ TRegTy (TRef (RArray (TRegTy TInt))) ], RetVal (TRegTy (TRef RString)))
+    );
+    ("length_of_string", ([ TRegTy (TRef RString) ], RetVal (TRegTy TInt)));
+    ("string_of_int", ([ TRegTy TInt ], RetVal (TRegTy (TRef RString))));
+    ( "string_cat",
+      ( [ TRegTy (TRef RString); TRegTy (TRef RString) ],
+        RetVal (TRegTy (TRef RString)) ) );
+    ("print_string", ([ TRegTy (TRef RString) ], RetVoid));
+    ("print_int", ([ TRegTy TInt ], RetVoid));
+    ("print_bool", ([ TRegTy TBool ], RetVoid));
   ]
 
 (* binary operation types --------------------------------------------------- *)
 let typ_of_binop : binop -> ty * ty * ty = function
-  | Add | Mul | Sub | Shl | Shr | Sar | IAnd | IOr -> (TInt, TInt, TInt)
-  | Lt | Lte | Gt | Gte -> (TInt, TInt, TBool)
-  | And | Or -> (TBool, TBool, TBool)
+  | Add | Mul | Sub | Shl | Shr | Sar | IAnd | IOr ->
+      (TRegTy TInt, TRegTy TInt, TRegTy TInt)
+  | Lt | Lte | Gt | Gte -> (TRegTy TInt, TRegTy TInt, TRegTy TBool)
+  | And | Or -> (TRegTy TBool, TRegTy TBool, TRegTy TBool)
   | Eq | Neq -> failwith "typ_of_binop called on polymorphic == or !="
 
 (* unary operation types ---------------------------------------------------- *)
 let typ_of_unop : unop -> ty * ty = function
-  | Neg | Bitnot -> (TInt, TInt)
-  | Lognot -> (TBool, TBool)
+  | Neg | Bitnot -> (TRegTy TInt, TRegTy TInt)
+  | Lognot -> (TRegTy TBool, TRegTy TBool)
 
 (* subtyping ---------------------------------------------------------------- *)
 (* Decides whether H |- t1 <: t2 
@@ -47,6 +54,23 @@ let typ_of_unop : unop -> ty * ty = function
       (Don't forget about OCaml's 'and' keyword.)
 *)
 let rec subtype (c : Tctxt.t) (t1 : ty) (t2 : ty) : bool =
+  match (t1, t2) with
+  | TRegTy reg1, TRegTy reg2 -> subtype_regty c reg1 reg2
+  | TLinTy lin1, TLinTy lin2 -> subtype_linty c lin1 lin2
+  | _, _ -> false
+
+and subtype_linty (c : Tctxt.t) (t1 : lty) (t2 : lty) : bool =
+  match (t1, t2) with
+  | TChan (ty1, r1, s1), TChan (ty2, r2, s2) ->
+      subtype c ty1 ty2 && subtype_mults r1 r2 && subtype_mults s1 s2
+
+and subtype_mults (m1 : mult) (m2 : mult) : bool =
+  match (m1, m2) with
+  | MNum n1, MNum n2 -> n1 <= n2
+  | MNum _, MArb -> true
+  | _ -> false
+
+and subtype_regty (c : Tctxt.t) (t1 : regty) (t2 : regty) : bool =
   match (t1, t2) with
   | TInt, TInt -> true
   | TBool, TBool -> true
@@ -102,8 +126,26 @@ and subtype_fields c n1 n2 : bool =
 
     - tc contains the structure definition context
  *)
+
+let is_lin_ty (t : ty) = match t with TLinTy _ -> true | _ -> false
+
 let rec typecheck_ty (l : 'a node) (tc : Tctxt.t) (t : ty) : unit =
   match t with
+  | TRegTy regty -> typecheck_regty l tc regty
+  | TLinTy (TChan (ty, rm, sm)) ->
+      typecheck_mult l rm;
+      typecheck_mult l sm;
+      typecheck_ty l tc ty
+
+and typecheck_mult (l : 'a node) (m : mult) : unit =
+  match m with
+  | MNum i ->
+      if i = Int64.of_int 0 || i == Int64.of_int 1 then ()
+      else type_error l "Multiplicities can either be 0, 1, or *"
+  | MArb -> ()
+
+and typecheck_regty l tc (regty : regty) : unit =
+  match regty with
   | TBool -> ()
   | TInt -> ()
   | TNullRef r | TRef r -> typecheck_ref l tc r
@@ -115,7 +157,9 @@ and typecheck_ref l tc (r : rty) : unit =
       if Tctxt.lookup_struct_option id tc = None then
         type_error l "Unbound struct type"
       else ()
-  | RArray t -> typecheck_ty l tc t
+  | RArray t ->
+      if is_lin_ty t then type_error l "Arrays cannot contain linear types"
+      else typecheck_ty l tc t
   | RFun (tl, rt) ->
       typecheck_ret l tc rt;
       List.iter (typecheck_ty l tc) tl

@@ -10,6 +10,7 @@ type id = string
 
 type ty = TRegTy of regty | TLinTy of lty
 
+(* type of channel, number of recvs, number of sends *)
 and lty = TChan of ty * mult * mult
 
 (* multiplicity of usage: 0, 1, arbitrary *)
