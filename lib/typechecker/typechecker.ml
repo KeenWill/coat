@@ -153,10 +153,12 @@ and typecheck_regty l tc (regty : regty) : unit =
 and typecheck_ref l tc (r : rty) : unit =
   match r with
   | RString -> ()
-  | RStruct id ->
-      if Tctxt.lookup_struct_option id tc = None then
-        type_error l "Unbound struct type"
-      else ()
+  | RStruct id -> (
+      match Tctxt.lookup_struct_option id tc with
+      | None -> type_error l "Unbound struct type"
+      | Some flist ->
+          (* TODO: This makes typechecking undecidable when user writes recursive types *)
+          List.iter (fun { ftyp = ty; _ } -> typecheck_ty l tc ty) flist)
   | RArray t ->
       if is_lin_ty t then type_error l "Arrays cannot contain linear types"
       else typecheck_ty l tc t
