@@ -194,84 +194,105 @@ and typecheck_ret l tc (rt : ret_ty) : unit =
    a=1} is well typed.  (You should sort the fields to compare them.)
 
 *)
-let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty =
+
+(* Typechecks an expression and returns the type, the resulting context
+ * NOTE: The resulting context is the same except for lin_locals, which
+ * which will *always* be smaller, since expressions cannot introduce
+ * idents to the context
+ *
+ * Thus, we can figure out which identifiers (and their types) are consumed
+ * by taking a set difference. This is useful for typechecking CSpawn *)
+
+let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
   match e.elt with
-  | CNull r -> TNullRef r
-  | CBool b -> TBool
-  | CInt i -> TInt
-  | CStr s -> TRef RString
+  | CNull r -> (TRegTy (TNullRef r), c)
+  | CBool _ -> (TRegTy TBool, c)
+  | CInt _ -> (TRegTy TInt, c)
+  | CStr _ -> (TRegTy (TRef RString), c)
   | Id i -> (
       match Tctxt.lookup_option i c with
-      | Some x -> x
-      | None -> type_error e ("Unbound identifier " ^ i))
+      | Some x -> (TRegTy x, c)
+      | None -> (
+          match Tctxt.lookup_local_lin_option i c with
+          | Some l ->
+              ( TLinTy l,
+                { c with lin_locals = List.remove_assoc i c.lin_locals } )
+          | None -> type_error e ("Unbound identifier " ^ i)))
   | CArr (t, l) ->
-      typecheck_ty e c t;
-      let types_of = List.map (typecheck_exp c) l in
-      if List.for_all (fun u -> subtype c u t) types_of then TRef (RArray t)
+      typecheck_ty e c (TRegTy (TRef (RArray t)));
+      let types_of, ctx = typecheck_exp_list c l in
+      if List.for_all (fun u -> subtype c u t) types_of then
+        (TRegTy (TRef (RArray t)), ctx)
       else type_error e "Mismatched array type"
   | NewArr (t, e1) ->
       (match t with
-      | TBool | TInt | TNullRef _ -> ()
-      | TRef _ ->
+      | TRegTy TBool | TRegTy TInt | TRegTy (TNullRef _) -> ()
+      | TLinTy _ -> type_error e "Arrays cannot contain linear types"
+      | TRegTy (TRef _) ->
           type_error e
             "Non-null types cannot be used with default-initialized arrays");
-      let size_type = typecheck_exp c e1 in
-      if size_type = TInt then TRef (RArray t)
+      let size_type, ctx = typecheck_exp c e1 in
+      if size_type = TRegTy TInt then (TRegTy (TRef (RArray t)), ctx)
       else type_error e "Array size not an int"
   | NewArrInit (t, e1, id, e2) ->
-      typecheck_ty e c t;
-      let size_type = typecheck_exp c e1 in
-      if size_type = TInt then
-        let tc' =
-          if List.exists (fun x -> fst x = id) c.locals then
-            type_error e1 "Cannot redeclare variable"
-          else Tctxt.add_local c id TInt
+      typecheck_ty e c (TRegTy (TRef (RArray t)));
+      let size_type, ctx1 = typecheck_exp c e1 in
+      if size_type = TRegTy TInt then
+        let ctx2 =
+          if
+            List.exists (fun x -> fst x = id) c.reg_locals
+            || List.exists (fun x -> fst x = id) c.lin_locals
+          then type_error e1 "Cannot redeclare variable"
+          else Tctxt.add_local_reg ctx1 id TInt
         in
-        let t' = typecheck_exp tc' e2 in
-        if subtype c t' t then TRef (RArray t)
+        let t', ctx3 = typecheck_exp ctx2 e2 in
+        if subtype c t' t then (TRegTy (TRef (RArray t)), ctx3)
         else type_error e2 "Initializer has incorrect type"
       else type_error e1 "Array size not an int"
   | Bop (b, l, r) -> (
-      let ltyp = typecheck_exp c l in
-      let rtyp = typecheck_exp c r in
+      let ltyp, new_ctxt1 = typecheck_exp c l in
+      let rtyp, new_ctxt2 = typecheck_exp new_ctxt1 r in
       match b with
       | Eq | Neq ->
-          if subtype c ltyp rtyp && subtype c rtyp ltyp then TBool
+          if subtype c ltyp rtyp && subtype c rtyp ltyp then
+            (TRegTy TBool, new_ctxt2)
           else type_error e "== or != used with non type-compatible arguments"
       | _ ->
           let bl, br, bres = typ_of_binop b in
           if bl = ltyp then
-            if br = rtyp then bres
+            if br = rtyp then (bres, new_ctxt2)
             else type_error r "Incorrect type in binary expression"
           else type_error l "Incorrect type in binary expression")
   | Uop (u, e) ->
-      let t = typecheck_exp c e in
+      let t, new_ctxt = typecheck_exp c e in
       let us, ures = typ_of_unop u in
-      if us = t then ures else type_error e "Incorrect type for unary operator"
+      if us = t then (ures, new_ctxt)
+      else type_error e "Incorrect type for unary operator"
   | Index (e1, e2) ->
-      let arr_t = typecheck_exp c e1 in
-      let ind_t = typecheck_exp c e2 in
-      if ind_t = TInt then
+      let arr_t, new_ctxt1 = typecheck_exp c e1 in
+      let ind_t, new_ctxt2 = typecheck_exp new_ctxt1 e2 in
+      if ind_t = TRegTy TInt then
         match arr_t with
-        | TRef (RArray t) -> t
+        | TRegTy (TRef (RArray t)) -> (t, new_ctxt2)
         | _ ->
             type_error e1
               ("Tried to compute index into type " ^ Astlib.string_of_ty arr_t)
       else type_error e2 "Index of array index operator not an int"
   | Proj (s, id) -> (
-      let str_t = typecheck_exp c s in
+      let str_t, new_ctxt = typecheck_exp c s in
       match str_t with
-      | TRef (RStruct sn) -> (
+      | TRegTy (TRef (RStruct sn)) -> (
           match Tctxt.lookup_field_option sn id c with
           | None -> type_error e (id ^ " not member of struct " ^ sn)
-          | Some t -> t)
+          | Some t -> (t, new_ctxt))
       | _ -> type_error s "Cannot project from non-struct")
   | CStruct (id, l) -> (
       match Tctxt.lookup_struct_option id c with
       | None -> type_error e (id ^ "not a struct type")
       | Some x ->
-          let tc_field (id, node) = (id, typecheck_exp c node) in
-          let field_types = List.map tc_field l in
+          let ids, exps = List.split l in
+          let tys, ctx = typecheck_exp_list c exps in
+          let field_types = List.combine ids tys in
           let struct_names =
             List.sort compare (List.map (fun x -> x.fieldName) x)
           in
@@ -287,16 +308,16 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty =
                 type_error e (id ^ " field of struct incorrect")
               else ())
             field_types;
-          TRef (RStruct id))
+          (TRegTy (TRef (RStruct id)), ctx))
   | Length l -> (
-      let t = typecheck_exp c l in
+      let t, new_ctxt = typecheck_exp c l in
       match t with
-      | TRef (RArray t) -> TInt
+      | TRegTy (TRef (RArray t)) -> (TRegTy TInt, new_ctxt)
       | _ -> type_error l "Cannot take length of non-array")
   | Call (f, args) -> (
-      let argtyps = List.map (typecheck_exp c) args in
-      match typecheck_exp c f with
-      | TRef (RFun (l, RetVal r)) ->
+      let argtyps, ctx1 = typecheck_exp_list c args in
+      match typecheck_exp ctx1 f with
+      | TRegTy (TRef (RFun (l, RetVal r))), ctx2 ->
           if List.length l <> List.length argtyps then
             type_error e "Incorrect number of arguments"
           else
@@ -305,8 +326,42 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty =
                 if not (subtype c arg l) then
                   type_error e "Incorrect type of argument")
               argtyps l;
-          r
+          (r, ctx2)
       | _ -> type_error e "Need function argument for function call")
+  | CMakeChan (ty, rm, wm) ->
+      typecheck_ty e c (TLinTy (TChan (ty, rm, wm)));
+      (TLinTy (TChan (ty, rm, wm)), c)
+  | CSendChan (exp1, exp2) -> (
+      let chan_ty, ctx1 = typecheck_exp c exp1 in
+      let send_ty, ctx2 = typecheck_exp ctx1 exp2 in
+      match chan_ty with
+      | TLinTy (TChan (ty, _, wm)) ->
+          if wm = MNum (Int64.of_int 0) then
+            type_error e "Cannot send on channel type without sends"
+          else if subtype c send_ty ty then (TRegTy TInt, ctx2)
+          else type_error e "Cannot send incompatible type"
+      | _ -> type_error e "Cannot send on non-channel type")
+  | CRecvChan exp -> (
+      let t, ctx = typecheck_exp c exp in
+      match t with
+      | TLinTy (TChan (ty, rm, _)) ->
+          if rm <> MNum (Int64.of_int 0) then (ty, ctx)
+          else type_error e "Cannot receive on channel type without reads"
+      | _ -> type_error e "Cannot receive on non-channel type")
+  | CSpawn (exp1, exp2) -> ()
+  | CJoin exp -> (
+      let t, ctx = typecheck_exp c exp in
+      match t with
+      | TRegTy TInt -> (TRegTy TInt, ctx)
+      | _ -> type_error exp "Cannot join on non-int handle")
+
+and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
+  match el with
+  | [] -> ([], c)
+  | exp :: tl ->
+      let exp_ty, ctx1 = typecheck_exp c exp in
+      let tl_ty, ctx2 = typecheck_exp_list ctx1 tl in
+      (exp_ty :: tl_ty, ctx2)
 
 (* statements --------------------------------------------------------------- *)
 
