@@ -14,7 +14,7 @@ type ty = TRegTy of regty | TLinTy of lty
 and lty = TChan of ty * mult * mult
 
 (* multiplicity of usage: 0, 1, arbitrary *)
-and mult = MNum of int64 | MArb
+and mult = MNum of int | MArb
 
 and regty = TBool | TInt | TRef of rty | TNullRef of rty
 

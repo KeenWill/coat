@@ -134,7 +134,7 @@ ty:
   | LPAREN t=ty RPAREN { t }
 
 %inline mult:
-  | i=INT { MNum i }
+  | i=INT { MNum (Int64.to_int i) }
   | STAR { MArb }
 
 %inline ret_ty:

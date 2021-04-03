@@ -71,7 +71,7 @@ let rec print_ty_aux fmt t =
 
 and print_mult_aux fmt t =
   let pps = pp_print_string fmt in
-  match t with MNum i -> pps (Int64.to_string i) | MArb -> pps "*"
+  match t with MNum i -> pps (string_of_int i) | MArb -> pps "*"
 
 and print_regty_aux fmt t =
   let pps = pp_print_string fmt in
@@ -475,7 +475,7 @@ let rec ml_string_of_ty (t : ty) : string =
         (ml_string_of_mult m2)
 
 and ml_string_of_mult (m : mult) : string =
-  match m with MNum i -> Int64.to_string i | MArb -> "*"
+  match m with MNum i -> string_of_int i | MArb -> "*"
 
 and ml_string_of_regty (t : regty) : string =
   match t with
