@@ -218,9 +218,7 @@ and print_exp_aux level fmt e =
         (fun () -> pps ", ")
         (fun fmt expl ->
           pps "(";
-          print_list_aux fmt
-            (fun () -> pps ", ")
-            (print_exp_aux this_level) expl;
+          print_list_aux fmt (fun () -> pps ", ") print_id_aux expl;
           pps ")")
         args;
       pps "])"
@@ -562,7 +560,7 @@ let rec ml_string_of_exp_aux (e : exp) : string =
   | CSpawn (fptrs, args) ->
       sp "CSpawn (%s, %s)"
         (ml_string_of_list ml_string_of_exp fptrs)
-        (ml_string_of_list (ml_string_of_list ml_string_of_exp) args)
+        (ml_string_of_list (ml_string_of_list ml_string_of_id) args)
   | CJoin exp -> sp "CJoin %s" (ml_string_of_exp exp)
 
 and ml_string_of_exp (e : exp node) : string =

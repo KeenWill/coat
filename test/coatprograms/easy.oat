@@ -10,6 +10,8 @@ void sender(chan<int, 0, 1> c, int x) {
 
 int program(int argc, string[] argv) {
   var channel = makechan<int,*,*>();
-  var thread_group = spawn([receiver, sender, sender], [(channel), (channel, 1), (channel, 2)]);
+  var arg1 = 1;
+  var arg2 = 2;
+  var thread_group = spawn([receiver, sender, sender], [(channel), (channel, arg1), (channel, arg2)]);
   var res = join(thread_group);
 }

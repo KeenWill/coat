@@ -232,7 +232,7 @@ exp:
   | LPAREN e=exp RPAREN { e } 
 
 %inline spawn_args:
-  | LPAREN a=separated_list(COMMA, exp) RPAREN { a }
+  | LPAREN a=separated_list(COMMA, IDENT) RPAREN { a }
 
 field:
   | id=IDENT EQ e=exp { (id, e) }
