@@ -140,7 +140,7 @@ let rec typecheck_ty (l : 'a node) (tc : Tctxt.t) (t : ty) : unit =
 and typecheck_mult (l : 'a node) (m : mult) : unit =
   match m with
   | MNum i ->
-      if i = Int64.of_int 0 || i == Int64.of_int 1 then ()
+      if i = 0 || i == 1 then ()
       else type_error l "Multiplicities can either be 0, 1, or *"
   | MArb -> ()
 
@@ -199,9 +199,27 @@ and typecheck_ret l tc (rt : ret_ty) : unit =
  * NOTE: The resulting context is the same except for lin_locals, which
  * which will *always* be smaller, since expressions cannot introduce
  * idents to the context
- *
- * Thus, we can figure out which identifiers (and their types) are consumed
- * by taking a set difference. This is useful for typechecking CSpawn *)
+ *)
+
+module Id = struct
+  type t = Ast.id
+
+  let compare = String.compare
+end
+
+module LinTyMap = Map.Make (Id)
+
+let comb_mult (m1 : mult) (m2 : mult) : mult =
+  match (m1, m2) with MNum 0, m -> m | m, MNum 0 -> m | _, _ -> MArb
+
+let rec coerce_chan_types (l : lty list) : (mult * mult) option =
+  match l with
+  | [ TChan (_, rm, wm) ] -> Some (rm, wm)
+  | TChan (_, rm, wm) :: tl -> (
+      match coerce_chan_types tl with
+      | Some (crm, cwm) -> Some (comb_mult crm rm, comb_mult cwm wm)
+      | _ -> None)
+  | _ -> None
 
 let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
   match e.elt with
@@ -336,7 +354,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       let send_ty, ctx2 = typecheck_exp ctx1 exp2 in
       match chan_ty with
       | TLinTy (TChan (ty, _, wm)) ->
-          if wm = MNum (Int64.of_int 0) then
+          if wm = MNum 0 then
             type_error e "Cannot send on channel type without sends"
           else if subtype c send_ty ty then (TRegTy TInt, ctx2)
           else type_error e "Cannot send incompatible type"
@@ -345,10 +363,73 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       let t, ctx = typecheck_exp c exp in
       match t with
       | TLinTy (TChan (ty, rm, _)) ->
-          if rm <> MNum (Int64.of_int 0) then (ty, ctx)
-          else type_error e "Cannot receive on channel type without reads"
+          if rm = MNum 0 then
+            type_error e "Cannot receive on channel type without reads"
+          else (ty, ctx)
       | _ -> type_error e "Cannot receive on non-channel type")
-  | CSpawn (exp1, exp2) -> ()
+  | CSpawn (exp1, args) ->
+      (* Step 1: Check whether argument length matches, and arguments match types. Use the
+       * same context for each fptr.
+       * Step 2: Collect all identifiers for each process that are linear. Check that
+       * combined use of identifiers fit types *)
+      let rec typecheck_processes (ctx : Tctxt.t)
+          (lin_map : lty list LinTyMap.t) (fptrs : exp node list)
+          (args_list : id list list) : lty list LinTyMap.t =
+        match (fptrs, args_list) with
+        | fptr :: fptr_tl, args :: args_tl -> (
+            let fptr_ty, ctx1 = typecheck_exp ctx fptr in
+            let args_tys, _ =
+              typecheck_exp_list ctx1 (List.map (fun id -> no_loc (Id id)) args)
+            in
+            match fptr_ty with
+            | TRegTy (TRef (RFun (l, RetVoid))) ->
+                let rec verify_fargs (args : ty list) (args_id : id list)
+                    (l : ty list) (lin_map : lty list LinTyMap.t) =
+                  match (args, args_id, l) with
+                  | arg_ty :: args_tl, arg_id :: args_id_tl, l_ty :: l_tl ->
+                      if not (subtype c arg_ty l_ty) then
+                        type_error fptr "spawn: argument type mismatch"
+                      else
+                        let new_map =
+                          match l_ty with
+                          | TLinTy lty ->
+                              LinTyMap.update arg_id
+                                (fun usage ->
+                                  match usage with
+                                  | None -> Some [ lty ]
+                                  | Some usage_l -> Some (lty :: usage_l))
+                                lin_map
+                          | _ -> lin_map
+                        in
+                        verify_fargs args_tl args_id_tl l_tl new_map
+                  | [], [], [] -> lin_map
+                  | _, _, _ -> type_error fptr "spawn: argument length mismatch"
+                in
+                let new_map = verify_fargs args_tys args l lin_map in
+                typecheck_processes ctx new_map fptr_tl args_tl
+            | _ ->
+                type_error fptr
+                  "spawn: cannot spawn process with non void function pointer")
+        | [], [] -> lin_map
+        | _, _ ->
+            type_error e "spawn: length of fptr list and args list do not match"
+      in
+      let lin_map = typecheck_processes c LinTyMap.empty exp1 args in
+      LinTyMap.iter
+        (fun id l ->
+          match coerce_chan_types l with
+          | Some (rm, wm) -> (
+              match List.assoc id c.lin_locals with
+              | TChan (_, crm, cwm) ->
+                  if subtype_mults rm crm && subtype_mults wm cwm then ()
+                  else type_error e "spawn: channel usage incorrect")
+          | None -> type_error e "spawn: coercing chan types failed?")
+        lin_map;
+
+      let new_local_lin_ctx =
+        LinTyMap.fold (fun k _ l -> List.remove_assoc k l) lin_map c.lin_locals
+      in
+      (TRegTy TInt, { c with lin_locals = new_local_lin_ctx })
   | CJoin exp -> (
       let t, ctx = typecheck_exp c exp in
       match t with
