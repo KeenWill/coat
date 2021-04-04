@@ -2,10 +2,12 @@ void receiver(chan<int, *, 0> c) {
   while (true) {
     var i = recvchan(c);
   }
+  return;
 }
 
 void sender(chan<int, 0, 1> c, int x) {
   var res = sendchan(c, x);
+  return;
 }
 
 int program(int argc, string[] argv) {
@@ -14,4 +16,5 @@ int program(int argc, string[] argv) {
   var arg2 = 2;
   var thread_group = spawn([receiver, sender, sender], [(channel), (channel, arg1), (channel, arg2)]);
   var res = join(thread_group);
+  return 0;
 }

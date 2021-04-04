@@ -676,10 +676,17 @@ let typecheck_tdecl (tc : Tctxt.t) id fs (l : 'a node) : unit =
 *)
 let typecheck_fdecl (tc : Tctxt.t) (f : fdecl) (l : 'a node) : unit =
   let updated =
-    List.fold_left (fun c (t, i) -> Tctxt.add_local c i t) tc f.args
+    List.fold_left
+      (fun c (t, i) ->
+        match t with
+        | TLinTy lty -> add_local_lin c i lty
+        | TRegTy regty -> add_local_reg c i regty)
+      tc f.args
   in
-  let returned = typecheck_block updated f.body f.frtyp in
+  let ctx, returned = typecheck_block updated f.body f.frtyp in
   if not returned then type_error l "Need return statement"
+  else if List.length ctx.lin_locals <> 0 then
+    type_error l "Linear types not consumed at end of function"
 
 (* creating the typchecking context ----------------------------------------- *)
 
@@ -743,11 +750,14 @@ let create_global_ctxt (tc : Tctxt.t) (p : prog) : Tctxt.t =
   List.fold_left
     (fun c d ->
       match d with
-      | Gvdecl ({ elt = decl; _ } as l) ->
-          let e = typecheck_exp c decl.init in
-          if List.exists (fun x -> fst x = decl.name) c.globals then
-            type_error l ("Redeclaration of " ^ decl.name)
-          else Tctxt.add_global c decl.name e
+      | Gvdecl ({ elt = decl; _ } as l) -> (
+          let e, _ = typecheck_exp c decl.init in
+          match e with
+          | TLinTy _ -> type_error l "Global variables cannot be linear"
+          | TRegTy regty ->
+              if List.exists (fun x -> fst x = decl.name) c.globals then
+                type_error l ("Redeclaration of " ^ decl.name)
+              else Tctxt.add_global c decl.name regty)
       | _ -> c)
     tc p
 
