@@ -201,13 +201,7 @@ and typecheck_ret l tc (rt : ret_ty) : unit =
  * idents to the context
  *)
 
-module Id = struct
-  type t = Ast.id
-
-  let compare = String.compare
-end
-
-module LinTyMap = Map.Make (Id)
+module LinTyMap = Map.Make (String)
 
 let comb_mult (m1 : mult) (m2 : mult) : mult =
   match (m1, m2) with MNum 0, m -> m | m, MNum 0 -> m | _, _ -> MArb
@@ -234,6 +228,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           match Tctxt.lookup_local_lin_option i c with
           | Some l ->
               ( TLinTy l,
+                (* TODO: Consider changing the type to TMoved so we know the variable was still declared *)
                 { c with lin_locals = List.remove_assoc i c.lin_locals } )
           | None -> type_error e ("Unbound identifier " ^ i)))
   | CArr (t, l) ->
@@ -330,7 +325,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
   | Length l -> (
       let t, new_ctxt = typecheck_exp c l in
       match t with
-      | TRegTy (TRef (RArray t)) -> (TRegTy TInt, new_ctxt)
+      | TRegTy (TRef (RArray _)) -> (TRegTy TInt, new_ctxt)
       | _ -> type_error l "Cannot take length of non-array")
   | Call (f, args) -> (
       let argtyps, ctx1 = typecheck_exp_list c args in
@@ -484,41 +479,54 @@ and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
 let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
     Tctxt.t * bool =
   match s.elt with
-  | Assn (e1, e2) ->
+  | Assn (e1, e2) -> (
       let () =
         match e1.elt with
         | Id x -> (
-            match Tctxt.lookup_local_option x tc with
+            match lookup_local_lin_option x tc with
             | Some _ -> ()
             | None -> (
-                match Tctxt.lookup_global_option x tc with
-                | Some (TRef (RFun _)) ->
-                    type_error s ("cannot assign to global function " ^ x)
-                | _ -> ()))
+                match lookup_local_reg_option x tc with
+                | Some _ -> ()
+                | None -> (
+                    match lookup_global_option x tc with
+                    | Some (TRef (RFun _)) ->
+                        type_error s ("cannot assign to global function " ^ x)
+                    | _ -> ())))
         | _ -> ()
       in
-      let assn_to = typecheck_exp tc e1 in
-      let assn_from = typecheck_exp tc e2 in
-      if subtype tc assn_from assn_to then (tc, false)
-      else type_error s "Mismatched types in assignment"
-  | Decl (id, exp) ->
-      let exp_type = typecheck_exp tc exp in
-      if List.exists (fun x -> fst x = id) tc.locals then
-        type_error s "Cannot redeclare variable"
-      else (Tctxt.add_local tc id exp_type, false)
+      let assn_to, ctx1 = typecheck_exp tc e1 in
+      match assn_to with
+      | TLinTy _ -> type_error s "cannot assign to linear type"
+      | _ ->
+          let assn_from, ctx2 = typecheck_exp ctx1 e2 in
+          if subtype tc assn_from assn_to then (ctx2, false)
+          else type_error s "Mismatched types in assignment")
+  | Decl (id, exp) -> (
+      let exp_type, tc1 = typecheck_exp tc exp in
+      if
+        List.exists (fun x -> fst x = id) tc.reg_locals
+        || List.exists (fun x -> fst x = id) tc.lin_locals
+      then type_error s "Cannot redeclare variable"
+      else
+        match exp_type with
+        | TLinTy lty -> (add_local_lin tc1 id lty, false)
+        | TRegTy regty -> (add_local_reg tc1 id regty, false))
   | Ret r -> (
       match (r, to_ret) with
       | None, RetVoid -> (tc, true)
       | Some r, RetVal to_ret ->
-          let t = typecheck_exp tc r in
-          if subtype tc t to_ret then (tc, true)
+          let t, tc' = typecheck_exp tc r in
+          if subtype tc t to_ret then (tc', true)
           else type_error s "Returned incorrect type"
-      | None, RetVal to_ret -> type_error s "Returned void in non-void function"
-      | Some r, RetVoid -> type_error s "Returned non-void in void function")
+      | None, RetVal _ -> type_error s "Returned void in non-void function"
+      | Some _, RetVoid -> type_error s "Returned non-void in void function")
   | SCall (f, args) -> (
-      let argtyps = List.map (typecheck_exp tc) args in
-      match typecheck_exp tc f with
-      | TNullRef (RFun (l, RetVoid)) | TRef (RFun (l, RetVoid)) ->
+      let argtyps, ctx1 = typecheck_exp_list tc args in
+      let ftyp, ctx2 = typecheck_exp ctx1 f in
+      match ftyp with
+      | TRegTy (TNullRef (RFun (l, RetVoid)))
+      | TRegTy (TRef (RFun (l, RetVoid))) ->
           if List.length l <> List.length argtyps then
             type_error s "Incorrect number of arguments"
           else
@@ -527,33 +535,51 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
                 if not (subtype tc arg l) then
                   type_error s "Incorrect type of argument")
               argtyps l;
-          (tc, false)
+          (ctx2, false)
       | _ -> type_error s "Need function argument for function call")
   | If (e, b1, b2) ->
-      let guard_type = typecheck_exp tc e in
-      if guard_type <> TBool then type_error e "Incorrect type for guard"
+      let guard_type, ctx1 = typecheck_exp tc e in
+      if guard_type <> TRegTy TBool then type_error e "Incorrect type for guard"
       else
-        let lft_ret = typecheck_block tc b1 to_ret in
-        let rgt_ret = typecheck_block tc b2 to_ret in
-        (tc, lft_ret && rgt_ret)
+        let ctx_b1, lft_ret = typecheck_block ctx1 b1 to_ret in
+        let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
+        if ctx_b1 <> ctx_b2 then
+          type_error s
+            "Both branches in an if-conditional has to consume the same \
+             resources"
+        else (ctx_b1, lft_ret && rgt_ret)
   | Cast (r, id, exp, b1, b2) -> (
-      let exp_type = typecheck_exp tc exp in
+      let exp_type, ctx1 = typecheck_exp tc exp in
       match exp_type with
-      | TNullRef r' ->
+      | TRegTy (TNullRef r') ->
           if subtype_ref tc r' r then
-            let lft_ret =
-              typecheck_block (Tctxt.add_local tc id (TRef r)) b1 to_ret
+            let ctx_b1, lft_ret =
+              typecheck_block (add_local_reg ctx1 id (TRef r)) b1 to_ret
             in
-            let rgt_ret = typecheck_block tc b2 to_ret in
-            (tc, lft_ret && rgt_ret)
+            let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
+            if ctx_b1 <> ctx_b2 then
+              type_error s
+                "Both branches in an if-conditional has to consume the same \
+                 resources"
+            else (ctx_b1, lft_ret && rgt_ret)
           else type_error exp "if? expression not a subtype of declared type"
       | _ -> type_error exp "if? expression has non-? type")
   | While (b, bl) ->
-      let guard_type = typecheck_exp tc b in
-      if guard_type <> TBool then type_error b "Incorrect type for guard"
+      let guard_type, ctx1 = typecheck_exp tc b in
+      if guard_type <> TRegTy TBool then type_error b "Incorrect type for guard"
       else
-        let _ = typecheck_block tc bl to_ret in
-        (tc, false)
+        let res_ctx, _ = typecheck_block ctx1 bl to_ret in
+        (* Check what res_ctx has consumed, and make sure they are MArb *)
+        List.iter
+          (fun (id, ty) ->
+            if not (List.mem_assoc id res_ctx.lin_locals) then
+              match ty with
+              | TChan (_, rm, wm) ->
+                  if rm = MNum 1 || wm = MNum 1 then
+                    type_error (List.hd bl)
+                      "Consumed channel possibly multiple times")
+          ctx1.lin_locals;
+        (ctx1, false)
   | For (vs, guard, s, b) ->
       let updated_context =
         List.fold_left
@@ -580,12 +606,30 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       let _ = typecheck_block updated_context b to_ret in
       (tc, false)
 
-and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) : bool =
+and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
+    Tctxt.t * bool =
+  let res_ctx, ret = typecheck_block_helper tc b to_ret in
+  (* Check that all linear types introduced in block are consumed *)
+  (* TODO: It is possible that a variable was consumed, then redeclared
+   * to fix this we have to keep the variable around, but mark it as moved
+   * and catch redeclaration in Decl *)
+  List.iter
+    (fun (id, ty) ->
+      match List.assoc_opt id tc.lin_locals with
+      | None ->
+          type_error (List.hd b) "Linear types not consumed at end of block"
+      | Some og_ty ->
+          if ty <> og_ty then
+            type_error (List.hd b) "Linear types not consumed at end of block"
+          else ())
+    res_ctx.lin_locals;
+  (res_ctx, ret)
+
+and typecheck_block_helper (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
+    Tctxt.t * bool =
   match b with
-  | [] -> false
-  | [ h ] ->
-      let c, r = typecheck_stmt tc h to_ret in
-      r
+  | [] -> (tc, false)
+  | [ h ] -> typecheck_stmt tc h to_ret
   | h1 :: h2 :: t ->
       let new_context, r = typecheck_stmt tc h1 to_ret in
       if r then type_error h2 "Dead code"
@@ -652,7 +696,7 @@ let create_struct_ctxt (p : prog) : Tctxt.t =
   List.fold_left
     (fun c d ->
       match d with
-      | Gtdecl ({ elt = id, fs } as l) ->
+      | Gtdecl ({ elt = id, fs; _ } as l) ->
           if List.exists (fun x -> id = fst x) c.structs then
             type_error l ("Redeclaration of struct " ^ id)
           else Tctxt.add_struct c id fs
@@ -669,7 +713,7 @@ let create_function_ctxt (tc : Tctxt.t) (p : prog) : Tctxt.t =
   List.fold_left
     (fun c d ->
       match d with
-      | Gfdecl ({ elt = f } as l) ->
+      | Gfdecl ({ elt = f; _ } as l) ->
           if List.exists (fun x -> fst x = f.fname) c.globals then
             type_error l ("Redeclaration of " ^ f.fname)
           else
@@ -682,7 +726,7 @@ let create_global_ctxt (tc : Tctxt.t) (p : prog) : Tctxt.t =
   List.fold_left
     (fun c d ->
       match d with
-      | Gvdecl ({ elt = decl } as l) ->
+      | Gvdecl ({ elt = decl; _ } as l) ->
           let e = typecheck_exp c decl.init in
           if List.exists (fun x -> fst x = decl.name) c.globals then
             type_error l ("Redeclaration of " ^ decl.name)
@@ -700,7 +744,7 @@ let typecheck_program (p : prog) : unit =
   List.iter
     (fun p ->
       match p with
-      | Gfdecl ({ elt = f } as l) -> typecheck_fdecl tc f l
-      | Gtdecl ({ elt = id, fs } as l) -> typecheck_tdecl tc id fs l
+      | Gfdecl ({ elt = f; _ } as l) -> typecheck_fdecl tc f l
+      | Gtdecl ({ elt = id, fs; _ } as l) -> typecheck_tdecl tc id fs l
       | _ -> ())
     p
