@@ -65,7 +65,10 @@ and subtype_linty (c : Tctxt.t) (t1 : lty) (t2 : lty) : bool =
       subtype c ty1 ty2 && subtype_mults r1 r2 && subtype_mults s1 s2
 
 and subtype_mults (m1 : mult) (m2 : mult) : bool =
-  match (m1, m2) with MArb, MNum _ -> true | MArb, MArb -> true | _ -> false
+  match (m1, m2) with
+  | MArb, _ -> true
+  | MNum n1, MNum n2 -> n1 = n2
+  | _ -> false
 
 and subtype_regty (c : Tctxt.t) (t1 : regty) (t2 : regty) : bool =
   match (t1, t2) with
@@ -379,21 +382,26 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
                     (l : ty list) (lin_map : lty list LinTyMap.t) =
                   match (args, args_id, l) with
                   | arg_ty :: args_tl, arg_id :: args_id_tl, l_ty :: l_tl ->
-                      if not (subtype c arg_ty l_ty) then
-                        type_error fptr "spawn: argument type mismatch"
-                      else
-                        let new_map =
-                          match l_ty with
-                          | TLinTy lty ->
-                              LinTyMap.update arg_id
-                                (fun usage ->
-                                  match usage with
-                                  | None -> Some [ lty ]
-                                  | Some usage_l -> Some (lty :: usage_l))
-                                lin_map
-                          | _ -> lin_map
-                        in
-                        verify_fargs args_tl args_id_tl l_tl new_map
+                      (match (arg_ty, l_ty) with
+                      | TLinTy (TChan (ty1, _, _)), TLinTy (TChan (ty2, _, _))
+                        ->
+                          if not (subtype c ty1 ty2) then
+                            type_error fptr "spawn: argument type mismatch"
+                      | _, _ ->
+                          if not (subtype c arg_ty l_ty) then
+                            type_error fptr "spawn: argument type mismatch");
+                      let new_map =
+                        match l_ty with
+                        | TLinTy lty ->
+                            LinTyMap.update arg_id
+                              (fun usage ->
+                                match usage with
+                                | None -> Some [ lty ]
+                                | Some usage_l -> Some (lty :: usage_l))
+                              lin_map
+                        | _ -> lin_map
+                      in
+                      verify_fargs args_tl args_id_tl l_tl new_map
                   | [], [], [] -> lin_map
                   | _, _, _ -> type_error fptr "spawn: argument length mismatch"
                 in
@@ -413,7 +421,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           | Some (rm, wm) -> (
               match List.assoc id c.lin_locals with
               | TChan (_, crm, cwm) ->
-                  if subtype_mults rm crm && subtype_mults wm cwm then ()
+                  if rm = crm && wm = cwm then ()
                   else type_error e "spawn: channel usage incorrect")
           | None -> type_error e "spawn: coercing chan types failed?")
         lin_map;
