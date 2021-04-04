@@ -19,7 +19,7 @@ void client_wait(chan<int, 1, 0> r) {
 }
 
 void client(chan<chan<int, 1, 1>, *,* > c) {
-  var r = makechan<int, 1, 1>();
+  var r = makechan<int, *, *>();
   var thread_group = spawn([client_send, client_wait], [(c, r), (r)]);
   var res = join(thread_group);
   return;

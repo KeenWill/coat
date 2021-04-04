@@ -65,10 +65,7 @@ and subtype_linty (c : Tctxt.t) (t1 : lty) (t2 : lty) : bool =
       subtype c ty1 ty2 && subtype_mults r1 r2 && subtype_mults s1 s2
 
 and subtype_mults (m1 : mult) (m2 : mult) : bool =
-  match (m1, m2) with
-  | MNum n1, MNum n2 -> n1 <= n2
-  | MNum _, MArb -> true
-  | _ -> false
+  match (m1, m2) with MArb, MNum _ -> true | MArb, MArb -> true | _ -> false
 
 and subtype_regty (c : Tctxt.t) (t1 : regty) (t2 : regty) : bool =
   match (t1, t2) with
@@ -584,7 +581,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
         let res_ctx, _ = typecheck_block ctx1 bl to_ret in
         (* Check what res_ctx has consumed, and make sure they are MArb *)
         verify_arb_consumption ctx1 res_ctx (List.hd bl);
-        (ctx1, false)
+        ({ ctx1 with lin_locals = res_ctx.lin_locals }, false)
   | For (vs, guard, upd, b) ->
       let ctx1 =
         List.fold_left
@@ -621,7 +618,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       in
       let ctx4, _ = typecheck_block ctx3 b to_ret in
       verify_arb_consumption ctx3 ctx4 s;
-      (ctx4, false)
+      ({ ctx3 with lin_locals = ctx4.lin_locals }, false)
 
 and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
     Tctxt.t * bool =
