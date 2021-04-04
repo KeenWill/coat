@@ -476,6 +476,19 @@ and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
    - You will probably find it convenient to add a helper function that implements the 
      block typecheck rules.
 *)
+
+let verify_arb_consumption (og_tc : Tctxt.t) (res_tc : Tctxt.t) (nd : 'a node) :
+    unit =
+  List.iter
+    (fun (id, ty) ->
+      if not (List.mem_assoc id res_tc.lin_locals) then
+        match ty with
+        | TChan (_, rm, wm) ->
+            if rm = MNum 1 || wm = MNum 1 then
+              type_error nd
+                "single-use channel possibly consumed multiple times")
+    og_tc.lin_locals
+
 let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
     Tctxt.t * bool =
   match s.elt with
@@ -570,41 +583,45 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       else
         let res_ctx, _ = typecheck_block ctx1 bl to_ret in
         (* Check what res_ctx has consumed, and make sure they are MArb *)
-        List.iter
-          (fun (id, ty) ->
-            if not (List.mem_assoc id res_ctx.lin_locals) then
-              match ty with
-              | TChan (_, rm, wm) ->
-                  if rm = MNum 1 || wm = MNum 1 then
-                    type_error (List.hd bl)
-                      "Consumed channel possibly multiple times")
-          ctx1.lin_locals;
+        verify_arb_consumption ctx1 res_ctx (List.hd bl);
         (ctx1, false)
-  | For (vs, guard, s, b) ->
-      let updated_context =
+  | For (vs, guard, upd, b) ->
+      let ctx1 =
         List.fold_left
           (fun c (id, e) ->
-            let t = typecheck_exp c e in
-            Tctxt.add_local c id t)
+            let t, new_ctx = typecheck_exp c e in
+            let regty =
+              match t with
+              | TLinTy _ ->
+                  type_error s "for: introduced linear types in declaration"
+              | TRegTy r -> r
+            in
+            Tctxt.add_local_reg new_ctx id regty)
           tc vs
       in
-      let _ =
+      let ctx2 =
         match guard with
-        | None -> ()
+        | None -> ctx1
         | Some b ->
-            if TBool <> typecheck_exp updated_context b then
-              type_error b "Incorrect type for guard"
-            else ()
+            let ty, new_ctx = typecheck_exp ctx1 b in
+            (* Check if expression consumed any linear types, and make sure they are MArb *)
+            verify_arb_consumption ctx1 new_ctx s;
+            if TRegTy TBool <> ty then type_error b "Incorrect type for guard"
+            else new_ctx
       in
-      let _ =
-        match s with
-        | None -> ()
-        | Some s ->
-            let nc, rt = typecheck_stmt updated_context s to_ret in
+      let ctx3 =
+        match upd with
+        | None -> ctx2
+        | Some upd ->
+            let nc, rt = typecheck_stmt ctx2 upd to_ret in
+            (* Check if statement consumed any linear types, and make sure they are MArb *)
+            verify_arb_consumption ctx2 nc s;
             if rt then type_error s "Cannot return in for loop increment"
+            else nc
       in
-      let _ = typecheck_block updated_context b to_ret in
-      (tc, false)
+      let ctx4, _ = typecheck_block ctx3 b to_ret in
+      verify_arb_consumption ctx3 ctx4 s;
+      (ctx4, false)
 
 and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
     Tctxt.t * bool =
