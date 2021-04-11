@@ -81,3 +81,5 @@ type prog = {
   fdecls : (gid * fdecl) list;
   edecls : (gid * ty) list;
 }
+
+type llchan = I64

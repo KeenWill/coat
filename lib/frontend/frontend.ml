@@ -137,11 +137,18 @@ end
    NOTE: structure types are named, so they compile to their named form
 *)
 
-let rec cmp_ty (ct : TypeCtxt.t) : Ast.ty -> Ll.ty = function
+let rec cmp_ty (ct: TypeCtxt.t) : Ast.ty -> Ll.ty = function
+  | Ast.TRegTy regty -> cmp_regty ct regty
+  | Ast.TLinTy lty -> cmp_lty ct lty
+
+and cmp_regty (ct : TypeCtxt.t) : Ast.regty -> Ll.ty = function
   | Ast.TBool -> I1
   | Ast.TInt -> I64
   | Ast.TRef r -> Ptr (cmp_rty ct r)
   | Ast.TNullRef r -> Ptr (cmp_rty ct r)
+
+and cmp_lty (ct: TypeCtxt.t) : Ast.lty -> Ll.ty = function
+  | TChan _ ->  (Ptr llchan) (* TODO: Compile to pointer  *)
 
 and cmp_ret_ty ct : Ast.ret_ty -> Ll.ty = function
   | Ast.RetVoid -> Void
@@ -158,13 +165,13 @@ and cmp_rty ct : Ast.rty -> Ll.ty = function
       Fun (args, ret)
 
 let typ_of_binop : Ast.binop -> Ast.ty * Ast.ty * Ast.ty = function
-  | Add | Mul | Sub | Shl | Shr | Sar | IAnd | IOr -> (TInt, TInt, TInt)
-  | Eq | Neq | Lt | Lte | Gt | Gte -> (TInt, TInt, TBool)
-  | And | Or -> (TBool, TBool, TBool)
+  | Add | Mul | Sub | Shl | Shr | Sar | IAnd | IOr -> (TRegTy TInt, TRegTy TInt, TRegTy TInt)
+  | Eq | Neq | Lt | Lte | Gt | Gte -> (TRegTy TInt, TRegTy TInt, TRegTy TBool)
+  | And | Or -> (TRegTy TBool, TRegTy TBool, TRegTy TBool)
 
 let typ_of_unop : Ast.unop -> Ast.ty * Ast.ty = function
-  | Neg | Bitnot -> (TInt, TInt)
-  | Lognot -> (TBool, TBool)
+  | Neg | Bitnot -> (TRegTy TInt, TRegTy TInt)
+  | Lognot -> (TRegTy TBool, TRegTy TBool)
 
 (* Some useful helper functions *)
 
@@ -194,7 +201,7 @@ let rec size_oat_struct (l : Ast.field list) =
 let oat_alloc_array ct (t : Ast.ty) (size : Ll.operand) :
     Ll.ty * Ll.operand * stream =
   let ans_id, arr_id = (gensym "array", gensym "raw_array") in
-  let ans_ty = cmp_ty ct @@ TRef (RArray t) in
+  let ans_ty = cmp_ty ct @@ TRegTy (TRef (RArray t)) in
   let arr_ty : Ll.ty = Ptr I64 in
   ( ans_ty,
     Id ans_id,
@@ -206,7 +213,7 @@ let oat_alloc_array ct (t : Ast.ty) (size : Ll.operand) :
 
 let oat_alloc_struct ct (id : Ast.id) : Ll.ty * Ll.operand * stream =
   let ret_id, arr_id = (gensym "struct", gensym "raw_struct") in
-  let ans_ty = cmp_ty ct (TRef (RStruct id)) in
+  let ans_ty = cmp_ty ct @@ TRegTy (TRef (RStruct id)) in
   let arr_ty : Ll.ty = Ptr I64 in
   ( ans_ty,
     Id ret_id,
@@ -255,7 +262,7 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
     Ll.ty * Ll.operand * stream =
   match exp.elt with
   | Ast.CInt i -> (I64, Const i, [])
-  | Ast.CNull r -> (cmp_ty tc (TNullRef r), Null, [])
+  | Ast.CNull r -> (cmp_ty tc @@ TRegTy (TNullRef r), Null, [])
   | Ast.CBool b -> (I1, i1_op_of_bool b, [])
   | Ast.CStr s ->
       let gid = gensym "str_arr" in
@@ -409,6 +416,41 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
       let ans_ty, ptr_op, code = cmp_exp_lhs tc c exp in
       let ans_id = gensym "proj" in
       (ans_ty, Id ans_id, code >:: I (ans_id, Load (Ptr ans_ty, ptr_op)))
+  | Ast.CMakeChan _ ->
+      let ret_id, chan_id = (gensym "chan", gensym "raw_chan") in
+      let ans_ty = cmp_ty tc @@ TLinTy (TChan (TRegTy TInt, MArb, MArb)) in
+      let chan_ty : Ll.ty = Ptr I64 in
+      ans_ty,
+      Id ret_id,
+      lift [
+        (chan_id, Call (chan_ty, Gid "chan_create", []));
+        (ret_id, Bitcast (chan_ty, Id chan_id, ans_ty));
+      ]
+  | Ast.CSendChan (e1, e2) -> let chan_ty, chan_op, chan_code = cmp_exp_lhs tc c e1 in
+                              let payload_ty, payload_op, payload_code = cmp_exp_lhs tc c e2 in
+                              let void_id = gensym "void" in
+                              I64,
+                              Id void_id,
+                              (chan_code >@ payload_code >:: I (void_id, Call (I64, Gid "chan_send", [(chan_ty, chan_op); (payload_ty, payload_op)])))
+  (* TODO: Actually compile this mammerjammer *)
+  | Ast.CRecvChan (e1) -> (??)
+  | Ast.CSpawn (exps, ids) ->
+      (* let ret_id, chan_id = (gensym "chan", gensym "raw_chan") in *)
+      (* let ans_ty = Ll.I64 in *)
+      let thrd_ty : Ll.ty = I64 in
+      thrd_ty,
+      Id ret_id,
+      lift [
+        (chan_id, Call (chan_ty, Gid "thread_spawn", []));
+        (ret_id, Bitcast (chan_ty, Id chan_id, ans_ty));
+      ]
+  | Ast.CJoin (e) ->
+      let void_id = gensym "void" in
+      let _, tid_op, tid_code = cmp_exp tc c e in
+      I64,
+      Id void_id,
+      tid_code >:: I (void_id, Call (I64, Gid "thread_join", [ I64, tid_op ]))
+      
 
 and cmp_exp_lhs (tc : TypeCtxt.t) (c : Ctxt.t) (e : Ast.exp Ast.node) :
     Ll.ty * Ll.operand * stream =
@@ -518,7 +560,7 @@ and cmp_stmt (tc : TypeCtxt.t) (c : Ctxt.t) (rt : Ll.ty)
         >:: L lt >@ then_code >:: T (Br lm) >:: L le >@ else_code >:: T (Br lm)
         >:: L lm )
   | Ast.Cast (typ, id, exp, notnull, null) ->
-      let translated_typ = cmp_ty tc (TRef typ) in
+      let translated_typ = cmp_ty tc @@ TRegTy (TRef typ) in
       let guard_op, guard_code = cmp_exp_as tc c exp translated_typ in
       let res_id = gensym id in
       let c' = Ctxt.add c id (Ptr translated_typ, Id res_id) in
@@ -596,7 +638,7 @@ let cmp_function_ctxt (tc : TypeCtxt.t) (c : Ctxt.t) (p : Ast.prog) : Ctxt.t =
     (fun c -> function
       | Ast.Gfdecl { elt = { frtyp; fname; args } } ->
           let ft = Ast.TRef (RFun (List.map fst args, frtyp)) in
-          Ctxt.add c fname (cmp_ty tc ft, Gid fname)
+          Ctxt.add c fname (cmp_ty tc (TRegTy ft), Gid fname)
       | _ -> c)
     c p
 
@@ -610,7 +652,7 @@ let cmp_global_ctxt (tc : TypeCtxt.t) (c : Ctxt.t) (p : Ast.prog) : Ctxt.t =
   let gexp_ty (c : Ctxt.t) : Ast.exp -> Ll.ty = function
     | Id id -> fst (Ctxt.lookup id c)
     | CStruct (t, cs) -> Ptr (Namedt t)
-    | CNull r -> cmp_ty tc (TNullRef r)
+    | CNull r -> cmp_ty tc @@ TRegTy (TNullRef r)
     | CBool b -> I1
     | CInt i -> I64
     | CStr s -> Ptr I8
@@ -654,8 +696,9 @@ let cmp_fdecl (tc : TypeCtxt.t) (c : Ctxt.t) (f : Ast.fdecl Ast.node) :
     let return_val =
       match frtyp with
       | RetVoid -> None
-      | RetVal TBool | RetVal TInt -> Some (Ll.Const 0L)
-      | RetVal (TRef _ | TNullRef _) -> Some Null
+      | RetVal TRegTy TBool | RetVal TRegTy TInt -> Some (Ll.Const 0L)
+      | RetVal (TRegTy TRef _ | TRegTy TNullRef _) -> Some Null
+      | RetVal TLinTy _ -> (??) (* TODO: can we compile this? Should we do a runtime failwith? *)
     in
     [ T (Ret (ll_rty, return_val)) ]
   in
@@ -668,7 +711,7 @@ let cmp_fdecl (tc : TypeCtxt.t) (c : Ctxt.t) (f : Ast.fdecl Ast.node) :
 let rec cmp_gexp c (tc : TypeCtxt.t) (e : Ast.exp Ast.node) :
     Ll.gdecl * (Ll.gid * Ll.gdecl) list =
   match e.elt with
-  | CNull r -> ((cmp_ty tc (TNullRef r), GNull), [])
+  | CNull r -> ((cmp_ty tc @@ TRegTy (TNullRef r), GNull), [])
   | CBool b -> ((I1, if b then GInt 1L else GInt 0L), [])
   | CInt i -> ((I64, GInt i), [])
   | Id id -> ((fst @@ Ctxt.lookup id c, GGid id), [])
@@ -719,6 +762,13 @@ let internals =
     ("oat_alloc_array", Ll.Fun ([ I64 ], Ptr I64));
     ("oat_assert_not_null", Ll.Fun ([ Ptr I8 ], Void));
     ("oat_assert_array_length", Ll.Fun ([ Ptr I64; I64 ], Void));
+    
+    (* TODO: Double check these types *)
+    ("chan_create", Ll.Fun ([], Ptr I64));
+    ("chan_send", Ll.Fun ([ Ptr I64; Ptr I64 ], Void));
+    ("chan_recv", Ll.Fun ([ Ptr I64 ], Ptr I64));
+    ("thread_spawn", Ll.Fun ([ Ptr I64; Ptr I64 ], I64));
+    ("thread_join", Ll.Fun ([ I64 ], I64));
   ]
 
 (* Oat builtin function context --------------------------------------------- *)
