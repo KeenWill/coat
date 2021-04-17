@@ -561,11 +561,11 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       else
         let ctx_b1, lft_ret = typecheck_block ctx1 b1 to_ret in
         let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
-        if ctx_b1 <> ctx_b2 then
+        if ctx_b1.lin_locals <> ctx_b2.lin_locals then
           type_error s
             "Both branches in an if-conditional has to consume the same \
              resources"
-        else (ctx_b1, lft_ret && rgt_ret)
+        else ({ tc with lin_locals = ctx_b1.lin_locals }, lft_ret && rgt_ret)
   | Cast (r, id, exp, b1, b2) -> (
       let exp_type, ctx1 = typecheck_exp tc exp in
       match exp_type with
