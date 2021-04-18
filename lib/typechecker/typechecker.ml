@@ -63,6 +63,7 @@ and subtype_linty (c : Tctxt.t) (t1 : lty) (t2 : lty) : bool =
   match (t1, t2) with
   | TChan (ty1, r1, s1), TChan (ty2, r2, s2) ->
       subtype c ty1 ty2 && subtype_mults r1 r2 && subtype_mults s1 s2
+  | _, _ -> false
 
 and subtype_mults (m1 : mult) (m2 : mult) : bool =
   match (m1, m2) with
@@ -131,6 +132,7 @@ let is_lin_ty (t : ty) = match t with TLinTy _ -> true | _ -> false
 
 let rec typecheck_ty (l : 'a node) (tc : Tctxt.t) (t : ty) : unit =
   match t with
+  | TLinTy TMoved -> type_error l "Moved type cannot be named"
   | TRegTy regty -> typecheck_regty l tc regty
   | TLinTy (TChan (ty, rm, sm)) ->
       typecheck_mult l rm;
@@ -226,10 +228,10 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       | Some x -> (TRegTy x, c)
       | None -> (
           match Tctxt.lookup_local_lin_option i c with
+          | Some TMoved -> type_error e "Usage of moved value"
           | Some l ->
-              ( TLinTy l,
-                (* TODO: Consider changing the type to TMoved so we know the variable was still declared *)
-                { c with lin_locals = List.remove_assoc i c.lin_locals } )
+              let removed_ctx = List.remove_assoc i c.lin_locals in
+              (TLinTy l, { c with lin_locals = (i, TMoved) :: removed_ctx })
           | None -> type_error e ("Unbound identifier " ^ i)))
   | CArr (t, l) ->
       typecheck_ty e c (TRegTy (TRef (RArray t)));
@@ -420,6 +422,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           match coerce_chan_types l with
           | Some (rm, wm) -> (
               match List.assoc id c.lin_locals with
+              | TMoved -> type_error e "spawn: usage of moved linear value"
               | TChan (_, crm, cwm) ->
                   if rm = crm && wm = cwm then ()
                   else type_error e "spawn: channel usage incorrect")
@@ -427,7 +430,9 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
         lin_map;
 
       let new_local_lin_ctx =
-        LinTyMap.fold (fun k _ l -> List.remove_assoc k l) lin_map c.lin_locals
+        LinTyMap.fold
+          (fun k _ l -> (k, TMoved) :: List.remove_assoc k l)
+          lin_map c.lin_locals
       in
       (TRegTy TInt, { c with lin_locals = new_local_lin_ctx })
   | CJoin exp -> (
@@ -488,6 +493,7 @@ let verify_arb_consumption (og_tc : Tctxt.t) (res_tc : Tctxt.t) (nd : 'a node) :
     (fun (id, ty) ->
       if not (List.mem_assoc id res_tc.lin_locals) then
         match ty with
+        | TMoved -> type_error nd "usage of moved linear value"
         | TChan (_, rm, wm) ->
             if rm = MNum 1 || wm = MNum 1 then
               type_error nd
@@ -575,11 +581,11 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
               typecheck_block (add_local_reg ctx1 id (TRef r)) b1 to_ret
             in
             let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
-            if ctx_b1 <> ctx_b2 then
+            if ctx_b1.lin_locals <> ctx_b2.lin_locals then
               type_error s
                 "Both branches in an if-conditional has to consume the same \
                  resources"
-            else (ctx_b1, lft_ret && rgt_ret)
+            else ({ tc with lin_locals = ctx_b1.lin_locals }, lft_ret && rgt_ret)
           else type_error exp "if? expression not a subtype of declared type"
       | _ -> type_error exp "if? expression has non-? type")
   | While (b, bl) ->
@@ -632,18 +638,17 @@ and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
     Tctxt.t * bool =
   let res_ctx, ret = typecheck_block_helper tc b to_ret in
   (* Check that all linear types introduced in block are consumed *)
-  (* TODO: It is possible that a variable was consumed, then redeclared
-   * to fix this we have to keep the variable around, but mark it as moved
-   * and catch redeclaration in Decl *)
   List.iter
     (fun (id, ty) ->
-      match List.assoc_opt id tc.lin_locals with
-      | None ->
-          type_error (List.hd b) "Linear types not consumed at end of block"
-      | Some og_ty ->
-          if ty <> og_ty then
+      if not (ty = TMoved) then
+        match List.assoc_opt id tc.lin_locals with
+        | None ->
             type_error (List.hd b) "Linear types not consumed at end of block"
-          else ())
+        | Some og_ty ->
+            if ty <> og_ty then
+              type_error (List.hd b)
+                "Linear types does not match - should not be possible"
+            else ())
     res_ctx.lin_locals;
   (res_ctx, ret)
 
@@ -690,8 +695,12 @@ let typecheck_fdecl (tc : Tctxt.t) (f : fdecl) (l : 'a node) : unit =
   in
   let ctx, returned = typecheck_block updated f.body f.frtyp in
   if not returned then type_error l "Need return statement"
-  else if List.length ctx.lin_locals <> 0 then
-    type_error l "Linear types not consumed at end of function"
+  else
+    List.iter
+      (fun (_, ty) ->
+        if ty <> TMoved then
+          type_error l "Linear types not consumed at end of function")
+      ctx.lin_locals
 
 (* creating the typchecking context ----------------------------------------- *)
 

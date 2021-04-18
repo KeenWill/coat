@@ -61,6 +61,7 @@ let rec print_list_aux fmt sep pp l =
 let rec print_ty_aux fmt t =
   let pps = pp_print_string fmt in
   match t with
+  | TLinTy TMoved -> failwith "TMoved should have no inhabitants"
   | TRegTy regty -> print_regty_aux fmt regty
   | TLinTy (TChan (ty, m1, m2)) ->
       pps "chan<";
@@ -469,6 +470,7 @@ let ml_string_of_node (f : 'a -> string) ({ elt; loc } : 'a node) =
 
 let rec ml_string_of_ty (t : ty) : string =
   match t with
+  | TLinTy TMoved -> failwith "TMoved should have no inhabitants"
   | TRegTy regty -> ml_string_of_regty regty
   | TLinTy (TChan (ty, m1, m2)) ->
       sp "TChan (%s, %s, %s)" (ml_string_of_ty ty) (ml_string_of_mult m1)

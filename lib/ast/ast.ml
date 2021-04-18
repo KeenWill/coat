@@ -11,7 +11,7 @@ type id = string
 type ty = TRegTy of regty | TLinTy of lty
 
 (* type of channel, number of recvs, number of sends *)
-and lty = TChan of ty * mult * mult
+and lty = TChan of ty * mult * mult | TMoved
 
 (* multiplicity of usage: 0, 1, arbitrary *)
 and mult = MNum of int | MArb
