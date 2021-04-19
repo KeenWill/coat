@@ -148,7 +148,8 @@ and cmp_regty (ct : TypeCtxt.t) : Ast.regty -> Ll.ty = function
   | Ast.TNullRef r -> Ptr (cmp_rty ct r)
 
 and cmp_lty (ct: TypeCtxt.t) : Ast.lty -> Ll.ty = function
-  | TChan _ ->  (Ptr llchan) (* TODO: Compile to pointer  *)
+  | TChan (t, _, _) ->  cmp_ty ct t (* TODO: Compile channel to its payload type  *)
+  | TMoved -> failwith "should never compile TMoved"
 
 and cmp_ret_ty ct : Ast.ret_ty -> Ll.ty = function
   | Ast.RetVoid -> Void
@@ -426,15 +427,24 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
         (chan_id, Call (chan_ty, Gid "chan_create", []));
         (ret_id, Bitcast (chan_ty, Id chan_id, ans_ty));
       ]
-  | Ast.CSendChan (e1, e2) -> let chan_ty, chan_op, chan_code = cmp_exp_lhs tc c e1 in
-                              let payload_ty, payload_op, payload_code = cmp_exp_lhs tc c e2 in
+  | Ast.CSendChan (echan, epayload) -> let chan_ty, chan_op, chan_code = cmp_exp_lhs tc c echan in
+                              let payload_ty, payload_op, payload_code = cmp_exp tc c epayload in
                               let void_id = gensym "void" in
                               I64,
                               Id void_id,
-                              (chan_code >@ payload_code >:: I (void_id, Call (I64, Gid "chan_send", [(chan_ty, chan_op); (payload_ty, payload_op)])))
-  (* TODO: Actually compile this mammerjammer *)
-  | Ast.CRecvChan (e1) -> (??)
-  | Ast.CSpawn (exps, ids) ->
+                              (chan_code >@ payload_code >:: I (void_id, Call (I64, Gid "chan_send", [(Ptr I64, chan_op); (payload_ty, payload_op)])))
+  | Ast.CRecvChan (echan) ->
+      let chan_ty, chan_op, chan_code = cmp_exp_lhs tc c echan in
+      let payload_id = gensym "payload" in
+      let ret_id = gensym "ret" in
+      chan_ty,
+      Id ret_id,
+      (chan_code >@ lift [
+        (payload_id, Call (I64, Gid "chan_send", [chan_ty, chan_op]));
+        (ret_id, Bitcast (Ptr I64, Id payload_id, chan_ty))
+      ])
+  
+  | Ast.CSpawn (efuncpointers, eargs_arr) ->
       (* let ret_id, chan_id = (gensym "chan", gensym "raw_chan") in *)
       (* let ans_ty = Ll.I64 in *)
       let thrd_ty : Ll.ty = I64 in
@@ -444,9 +454,10 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
         (chan_id, Call (chan_ty, Gid "thread_spawn", []));
         (ret_id, Bitcast (chan_ty, Id chan_id, ans_ty));
       ]
-  | Ast.CJoin (e) ->
+  | Ast.CJoin (e_arr_tid) -> (* e_tid should be an array of tids *)
       let void_id = gensym "void" in
-      let _, tid_op, tid_code = cmp_exp tc c e in
+      let _, tid_arr_op, tid_arr_code = cmp_exp tc c e_arr_tid in
+      
       I64,
       Id void_id,
       tid_code >:: I (void_id, Call (I64, Gid "thread_join", [ I64, tid_op ]))
@@ -705,6 +716,15 @@ let cmp_fdecl (tc : TypeCtxt.t) (c : Ctxt.t) (f : Ast.fdecl Ast.node) :
   let f_cfg, globals = cfg_of_stream (args_code >@ block_code >@ return_code) in
   ({ f_ty; f_param; f_cfg }, globals)
 
+let wrap_fdecl (f : Ast.fdecl Ast.node) : Ast.fdecl Ast.node =
+  Ast.no_loc {
+      frtyp = (f.frtyp)
+    ; fname = (f.fname ^ "_wrap")
+    ; args  = (TArr (Ptr I64), "wrap_args")
+    ; body  = (Ast.Call f ())
+  }
+  
+
 (* Compile a global initializer, returning the resulting LLVMlite global
    declaration, and a list of additional global declarations.
 *)
@@ -807,8 +827,20 @@ let cmp_prog (p : Ast.prog) : Ll.prog =
             let ll_gd, gs' = cmp_gexp c tc gd.init in
             (fs, (gd.name, ll_gd) :: gs' @ gs)
         | Ast.Gfdecl fd ->
+            (* TODO: Add gdecl struct for function args to pass to wrapped func
+            for cOnNCuRrEnCY *)
+            let arg_tys, arg_gstruct_tys = 
+              List.fold_right (fun (ty, _) acc -> 
+                (ty :: fst acc), ((ty, GInt ) :: snd acc)
+                (* GInt is prob wrong here but idk what else to put or even hand
+                to it *) 
+              ) fd.elt.args ([], []) in
+            let wrap_gs : string * Ll.gdecl = 
+              gensym "wrapped_args", 
+              (Ll.Struct arg_tys, Ll.GStruct arg_gstruct_tys) in
             let fdecl, gs' = cmp_fdecl tc c fd in
-            ((fd.elt.fname, fdecl) :: fs, gs' @ gs)
+            let fdecl_wrap, gs_wrap = cmp_fdecl tc c @@ wrap_fdecl fd in 
+            ((fd.elt.fname, fdecl) :: fs, wrap_gs :: gs_wrap @ gs' @ gs)
         | Ast.Gtdecl _ -> (fs, gs))
       p ([], [])
   in
