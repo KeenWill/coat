@@ -1,3 +1,4 @@
+include Ast_lib.Ast
 open Ll_lib
 open Ll_lib.Llutil
 open Ast_lib
@@ -445,14 +446,14 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
       ])
   
   | Ast.CSpawn (efuncpointers, eargs_arr) ->
-      (* let ret_id, chan_id = (gensym "chan", gensym "raw_chan") in *)
-      (* let ans_ty = Ll.I64 in *)
+      let ret_id, chan_id = (gensym "chan", gensym "raw_chan") in
+      let ans_ty : Ll.ty = I64 in
       let thrd_ty : Ll.ty = I64 in
       thrd_ty,
       Id ret_id,
       lift [
-        (chan_id, Call (chan_ty, Gid "thread_spawn", []));
-        (ret_id, Bitcast (chan_ty, Id chan_id, ans_ty));
+        (chan_id, Call (thrd_ty, Gid "thread_spawn", []));
+        (ret_id, Bitcast (thrd_ty, Id chan_id, ans_ty));
       ]
   | Ast.CJoin (e_arr_tid) -> (* e_tid should be an array of tids *)
       let void_id = gensym "void" in
@@ -460,7 +461,7 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
       
       I64,
       Id void_id,
-      tid_code >:: I (void_id, Call (I64, Gid "thread_join", [ I64, tid_op ]))
+      tid_arr_code >:: I (void_id, Call (I64, Gid "thread_join", [ I64, tid_arr_op ]))
       
 
 and cmp_exp_lhs (tc : TypeCtxt.t) (c : Ctxt.t) (e : Ast.exp Ast.node) :
@@ -709,20 +710,27 @@ let cmp_fdecl (tc : TypeCtxt.t) (c : Ctxt.t) (f : Ast.fdecl Ast.node) :
       | RetVoid -> None
       | RetVal TRegTy TBool | RetVal TRegTy TInt -> Some (Ll.Const 0L)
       | RetVal (TRegTy TRef _ | TRegTy TNullRef _) -> Some Null
-      | RetVal TLinTy _ -> (??) (* TODO: can we compile this? Should we do a runtime failwith? *)
+      | RetVal TLinTy _ -> failwith "cannot compile TLinTy as a return type" (* TODO: can we compile this? Should we do a runtime failwith? *)
     in
     [ T (Ret (ll_rty, return_val)) ]
   in
   let f_cfg, globals = cfg_of_stream (args_code >@ block_code >@ return_code) in
   ({ f_ty; f_param; f_cfg }, globals)
 
-let wrap_fdecl (f : Ast.fdecl Ast.node) : Ast.fdecl Ast.node =
-  Ast.no_loc {
-      frtyp = (f.frtyp)
-    ; fname = (f.fname ^ "_wrap")
-    ; args  = (TArr (Ptr I64), "wrap_args")
-    ; body  = (Ast.Call f ())
-  }
+let wrap_fdecl (f : Ast.fdecl Ast.node) (struct_name: string) (struct_fields: Ast.field list) : Ast.fdecl Ast.node =
+  Ast.(
+    let eargs = List.map (fun ({ fieldName; ftyp } : field) -> 
+      no_loc @@ Proj (no_loc (Id "wrap_args"), fieldName)
+    ) struct_fields in 
+    let fdecl : fdecl = 
+      {
+          frtyp = (f.elt.frtyp)
+        ; fname = (f.elt.fname ^ "_wrap")
+        ; args  = [ TRegTy (TRef (RStruct struct_name)), "wrap_args" ]
+        ; body  = [ no_loc @@ SCall (no_loc (Id f.elt.fname), eargs) ]
+      } in
+    no_loc fdecl
+  )
   
 
 (* Compile a global initializer, returning the resulting LLVMlite global
@@ -829,18 +837,16 @@ let cmp_prog (p : Ast.prog) : Ll.prog =
         | Ast.Gfdecl fd ->
             (* TODO: Add gdecl struct for function args to pass to wrapped func
             for cOnNCuRrEnCY *)
-            let arg_tys, arg_gstruct_tys = 
-              List.fold_right (fun (ty, _) acc -> 
-                (ty :: fst acc), ((ty, GInt ) :: snd acc)
-                (* GInt is prob wrong here but idk what else to put or even hand
-                to it *) 
-              ) fd.elt.args ([], []) in
-            let wrap_gs : string * Ll.gdecl = 
-              gensym "wrapped_args", 
-              (Ll.Struct arg_tys, Ll.GStruct arg_gstruct_tys) in
+            let struct_name = gensym "wrapped_args" in
+            let struct_ty : Ast.field list = 
+              List.map (fun (ty, name) -> 
+                {fieldName = name; ftyp = ty}
+              ) fd.elt.args in
+            let tc = TypeCtxt.add tc struct_name struct_ty in
+            
             let fdecl, gs' = cmp_fdecl tc c fd in
-            let fdecl_wrap, gs_wrap = cmp_fdecl tc c @@ wrap_fdecl fd in 
-            ((fd.elt.fname, fdecl) :: fs, wrap_gs :: gs_wrap @ gs' @ gs)
+            let fdecl_wrap, gs_wrap = cmp_fdecl tc c @@ wrap_fdecl fd struct_name struct_ty in 
+            ((fd.elt.fname, fdecl) :: fs, gs_wrap @ gs' @ gs)
         | Ast.Gtdecl _ -> (fs, gs))
       p ([], [])
   in
