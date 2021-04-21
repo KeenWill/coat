@@ -677,7 +677,13 @@ let rec check_dups fs =
 
 let typecheck_tdecl (tc : Tctxt.t) id fs (l : 'a node) : unit =
   if check_dups fs then type_error l ("Repeated fields in " ^ id)
-  else List.iter (fun f -> typecheck_ty l tc f.ftyp) fs
+  else
+    List.iter
+      (fun f ->
+        match f.ftyp with
+        | TLinTy _ -> type_error l "Structs cannot contain linear types"
+        | _ -> typecheck_ty l tc f.ftyp)
+      fs
 
 (* function declarations ---------------------------------------------------- *)
 (* typecheck a function declaration 
