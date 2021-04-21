@@ -111,3 +111,13 @@ int64_t thread_join(int64_t tid) {
   pthread_join((pthread_t)tid, NULL);
   return 0;
 }
+
+int64_t join_all_threads(int64_t *tids) {
+  // TIDS IS AN OAT ARRAY
+  int64_t length = *tids;
+  int64_t *arr = &tids[1];
+  for (int i = 0; i < length; i++) {
+    thread_join(arr[i]);
+  }
+  return 0;
+}

@@ -77,6 +77,7 @@ and print_mult_aux fmt t =
 and print_regty_aux fmt t =
   let pps = pp_print_string fmt in
   match t with
+  | TThreadGroup -> failwith "Should never see this in source"
   | TBool -> pps "bool"
   | TInt -> pps "int"
   | TRef r -> print_rty_aux fmt r
@@ -483,6 +484,7 @@ and ml_string_of_regty (t : regty) : string =
   match t with
   | TBool -> "TBool"
   | TInt -> "TInt"
+  | TThreadGroup -> failwith "Should never see this in source"
   | TRef r -> sp "TRef (%s)" (ml_string_of_reft r)
   | TNullRef r -> sp "TNullRef (%s)" (ml_string_of_reft r)
 

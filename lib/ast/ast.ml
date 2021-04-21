@@ -16,7 +16,7 @@ and lty = TChan of ty * mult * mult | TMoved
 (* multiplicity of usage: 0, 1, arbitrary *)
 and mult = MNum of int | MArb
 
-and regty = TBool | TInt | TRef of rty | TNullRef of rty
+and regty = TBool | TInt | TRef of rty | TNullRef of rty | TThreadGroup
 
 and rty = RString | RStruct of id | RArray of ty | RFun of ty list * ret_ty
 

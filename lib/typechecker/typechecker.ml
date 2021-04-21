@@ -150,6 +150,7 @@ and typecheck_regty l tc (regty : regty) : unit =
   match regty with
   | TBool -> ()
   | TInt -> ()
+  | TThreadGroup -> ()
   | TNullRef r | TRef r -> typecheck_ref l tc r
 
 and typecheck_ref l tc (r : rty) : unit =
@@ -241,7 +242,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       else type_error e "Mismatched array type"
   | NewArr (t, e1) ->
       (match t with
-      | TRegTy TBool | TRegTy TInt | TRegTy (TNullRef _) -> ()
+      | TRegTy TBool | TRegTy TInt | TRegTy (TNullRef _) | TRegTy TThreadGroup -> ()
       | TLinTy _ -> type_error e "Arrays cannot contain linear types"
       | TRegTy (TRef _) ->
           type_error e
@@ -434,11 +435,11 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           (fun k _ l -> (k, TMoved) :: List.remove_assoc k l)
           lin_map c.lin_locals
       in
-      (TRegTy TInt, { c with lin_locals = new_local_lin_ctx })
+      (TRegTy TThreadGroup , { c with lin_locals = new_local_lin_ctx })
   | CJoin exp -> (
       let t, ctx = typecheck_exp c exp in
       match t with
-      | TRegTy TInt -> (TRegTy TInt, ctx)
+      | TRegTy TThreadGroup  -> (TRegTy TInt, ctx)
       | _ -> type_error exp "Cannot join on non-int handle")
 
 and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
@@ -595,7 +596,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
         let res_ctx, _ = typecheck_block ctx1 bl to_ret in
         (* Check what res_ctx has consumed, and make sure they are MArb *)
         verify_arb_consumption ctx1 res_ctx (List.hd bl);
-        ({ ctx1 with lin_locals = res_ctx.lin_locals }, false)
+        ({ tc with lin_locals = res_ctx.lin_locals }, false)
   | For (vs, guard, upd, b) ->
       let ctx1 =
         List.fold_left
@@ -632,7 +633,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       in
       let ctx4, _ = typecheck_block ctx3 b to_ret in
       verify_arb_consumption ctx3 ctx4 s;
-      ({ ctx3 with lin_locals = ctx4.lin_locals }, false)
+      ({ tc with lin_locals = ctx4.lin_locals }, false)
 
 and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
     Tctxt.t * bool =

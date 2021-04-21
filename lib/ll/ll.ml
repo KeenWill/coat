@@ -82,4 +82,4 @@ type prog = {
   edecls : (gid * ty) list;
 }
 
-type llchan = I64
+(* type llchan = I64 *)
