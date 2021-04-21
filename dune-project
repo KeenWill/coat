@@ -14,5 +14,6 @@
   num
   menhir
   (ppx_inline_test :with-test)
+  (ppx_expect :with-test)
  )
 )

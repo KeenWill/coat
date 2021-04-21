@@ -1,5 +1,5 @@
 int program(int argc, string[] argv) {
-  var channel = makechan<int,0,1>();
+  var channel = makechan<int,*,*>();
   var x = channel;
   var y = x;
 

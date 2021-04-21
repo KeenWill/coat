@@ -11,3 +11,10 @@ let oat_tc_err_test path =
     let _ = Typechecker.typecheck_program oat_ast in
     false
   with Typechecker.TypeError _ -> true
+
+let expect_coat_tc_err_test path =
+  let oat_ast = Driver.parse_oat_file (adj_path ^ path) in
+  try
+    let _ = Typechecker.typecheck_program oat_ast in
+    print_endline ""
+  with Typechecker.TypeError s -> print_endline s
