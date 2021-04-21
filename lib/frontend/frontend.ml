@@ -507,10 +507,14 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
 
       let counter = ref 0 in
 
+      List.iter (fun (lbl, fields) -> print_endline lbl) tc;
+
       let spawn_code : stream = List.fold_left2 (fun acc { elt; _ } uids ->
         match elt with
         | Ast.Id fun_name ->
           counter := !counter + 1;
+
+          print_endline fun_name;
 
           (* let fun_ty, fun_op, fun_code = cmp_exp tc c elt in  *)
           let arg_tys_and_ops : ((ty * operand) list) = 
@@ -891,6 +895,19 @@ let cmp_prog (p : Ast.prog) : Ll.prog =
   (* build global variable context *)
   let c = cmp_global_ctxt tc fc p in
   (* compile functions and global variables *)
+
+  let tc = List.fold_left (fun tc d  ->
+    match d with
+    | Ast.Gfdecl fd ->
+      let struct_name = fd.elt.fname ^ "_struct_args" in
+      let struct_ty : Ast.field list = 
+        List.map (fun (ty, name) -> 
+          {fieldName = name; ftyp = ty}
+        ) fd.elt.args in
+      TypeCtxt.add tc struct_name struct_ty
+    | _ -> tc
+  ) tc p in
+
   let fdecls, gdecls =
     List.fold_right
       (fun d (fs, gs) ->
@@ -899,12 +916,11 @@ let cmp_prog (p : Ast.prog) : Ll.prog =
             let ll_gd, gs' = cmp_gexp c tc gd.init in
             (fs, (gd.name, ll_gd) :: gs' @ gs)
         | Ast.Gfdecl fd ->
-            let struct_name = gensym "wrapped_args" in
+            let struct_name = fd.elt.fname ^ "_struct_args" in
             let struct_ty : Ast.field list = 
               List.map (fun (ty, name) -> 
                 {fieldName = name; ftyp = ty}
               ) fd.elt.args in
-            let tc = TypeCtxt.add tc struct_name struct_ty in
             let fdecl, gs' = cmp_fdecl tc c fd in
             let fdecl_wrap, gs_wrap = cmp_fdecl tc c @@ wrap_fdecl fd struct_name struct_ty in 
             ((fd.elt.fname, fdecl) :: fs, gs_wrap @ gs' @ gs)
