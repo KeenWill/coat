@@ -1,6 +1,7 @@
 void receiver(chan<int, *, 0> c) {
   while (true) {
-    var i = recvchan(c);
+    var i = recvchan<int>(c);
+    print_int(i);
   }
   return;
 }

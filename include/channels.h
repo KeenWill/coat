@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 typedef struct Node {
-  int64_t *value;
+  int64_t value;
   struct Node *next;
   struct Node *prev;
 } node_ty;
@@ -22,8 +22,8 @@ typedef struct Channel {
 } channel_ty;
 
 int64_t *chan_create();
-int64_t chan_send(int64_t *ptr, int64_t *val);
-int64_t *chan_recv(int64_t *ptr);
+int64_t chan_send(int64_t *ptr, int64_t val);
+int64_t chan_recv(int64_t *ptr);
 int64_t thread_spawn(void *fptr(void *), int64_t *args);
 int64_t thread_join(int64_t tid);
 int64_t join_all_threads(int64_t *tids);

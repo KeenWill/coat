@@ -6,7 +6,7 @@
 
 #include "channels.h"
 
-void enqueue(queue_ty *q, int64_t *val) {
+void enqueue(queue_ty *q, int64_t val) {
   node_ty *new_node = malloc(sizeof(node_ty));
   if (new_node == NULL) {
     perror("Enqueue: ");
@@ -27,13 +27,13 @@ void enqueue(queue_ty *q, int64_t *val) {
   }
 }
 
-int64_t *dequeue(queue_ty *q) {
+int64_t dequeue(queue_ty *q) {
   if (q->tail == NULL) {
-    return NULL;
+    return 0;
   }
 
   node_ty *last = q->tail;
-  int64_t *ret = last->value;
+  int64_t ret = last->value;
 
   if (q->head == q->tail) {
     q->head = NULL;
@@ -60,7 +60,7 @@ int64_t *chan_create() {
   return (int64_t *)chn;
 }
 
-int64_t chan_send(int64_t *ptr, int64_t *val) {
+int64_t chan_send(int64_t *ptr, int64_t val) {
   channel_ty *handle = (channel_ty*) ptr;
   if (pthread_mutex_lock(&(handle->lock)) != 0) {
     perror("chan_send mutex lock: ");
@@ -80,7 +80,7 @@ int64_t chan_send(int64_t *ptr, int64_t *val) {
   return 0;
 }
 
-int64_t *chan_recv(int64_t *ptr) {
+int64_t chan_recv(int64_t *ptr) {
   channel_ty *handle = (channel_ty*) ptr;
   if (pthread_mutex_lock(&(handle->lock)) != 0) {
     perror("chan_recv mutex lock: ");
@@ -89,7 +89,7 @@ int64_t *chan_recv(int64_t *ptr) {
   while (1) {
     // Lock acquired
     if (handle->q.head != NULL) {
-      int64_t *ret = dequeue(&(handle->q));
+      int64_t ret = dequeue(&(handle->q));
       if (pthread_mutex_unlock(&(handle->lock)) != 0) {
         perror("chan_recv mutex unlock: ");
         exit(1);

@@ -49,7 +49,7 @@ type exp =
   | CStr of string
   | CMakeChan of ty * mult * mult
   | CSendChan of exp node * exp node
-  | CRecvChan of exp node
+  | CRecvChan of ty * exp node
   | CSpawn of exp node list * id list list
   | CJoin of exp node
   | Id of id

@@ -357,14 +357,15 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           else if subtype c send_ty ty then (TRegTy TInt, ctx2)
           else type_error e "Cannot send incompatible type"
       | _ -> type_error e "Cannot send on non-channel type")
-  | CRecvChan exp -> (
+  | CRecvChan (annot_ty, exp) -> (
       let t, ctx = typecheck_exp c exp in
-      match t with
+      (match t with
       | TLinTy (TChan (ty, rm, _)) ->
+          if annot_ty <> ty then type_error e "Type annotations incorrect" else  
           if rm = MNum 0 then
             type_error e "Cannot receive on channel type without reads"
           else (ty, ctx)
-      | _ -> type_error e "Cannot receive on non-channel type")
+      | _ -> type_error e "Cannot receive on non-channel type"))
   | CSpawn (exp1, args) ->
       (* Step 1: Check whether argument length matches, and arguments match types. Use the
        * same context for each fptr.

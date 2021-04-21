@@ -207,8 +207,10 @@ and print_exp_aux level fmt e =
       pps ",";
       print_exp_aux this_level fmt exp2;
       pps ")"
-  | CRecvChan exp ->
-      pps "recvchan(";
+  | CRecvChan (ty, exp) ->
+      pps "recvchan<";
+      print_ty_aux fmt ty;
+      pps ">(";
       print_exp_aux this_level fmt exp;
       pps ")"
   | CSpawn (fptrs, args) ->
@@ -560,7 +562,7 @@ let rec ml_string_of_exp_aux (e : exp) : string =
         (ml_string_of_mult m2)
   | CSendChan (exp1, exp2) ->
       sp "CSendChan (%s, %s)" (ml_string_of_exp exp1) (ml_string_of_exp exp2)
-  | CRecvChan exp -> sp "CRecvChan %s" (ml_string_of_exp exp)
+  | CRecvChan (ty, exp) -> sp "CRecvChan (%s, %s)" (ml_string_of_ty ty) (ml_string_of_exp exp)
   | CSpawn (fptrs, args) ->
       sp "CSpawn (%s, %s)"
         (ml_string_of_list ml_string_of_exp fptrs)

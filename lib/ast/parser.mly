@@ -222,8 +222,8 @@ exp:
                         { loc $startpos $endpos @@ CMakeChan (t, m1, m2)  }
   | SENDCHAN LPAREN e1=exp COMMA e2=exp RPAREN
                         { loc $startpos $endpos @@ CSendChan (e1, e2) }
-  | RECVCHAN LPAREN e=exp RPAREN
-                        { loc $startpos $endpos @@ CRecvChan (e) }
+  | RECVCHAN LT t=ty GT LPAREN e=exp RPAREN
+                        { loc $startpos $endpos @@ CRecvChan (t, e) }
   | SPAWN LPAREN LBRACKET cs1=separated_list(COMMA, exp) RBRACKET
     COMMA LBRACKET cs2=separated_list(COMMA, spawn_args)
     RBRACKET RPAREN
