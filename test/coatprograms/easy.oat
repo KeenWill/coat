@@ -1,0 +1,24 @@
+void receiver(chan<int, *, 0> c) {
+  var i = -1;
+  var count = 0;
+  while (count < 2) {
+    i = recvchan<int>(c);
+    print_int(i);
+    count = count + 1;
+  }
+  return;
+}
+
+void sender(chan<int, 0, 1> c, int x) {
+  var res = sendchan(c, x);
+  return;
+}
+
+int program(int argc, string[] argv) {
+  var channel = makechan<int,*,*>();
+  var arg1 = 1;
+  var arg2 = 2;
+  var thread_group = spawn([receiver, sender, sender], [(channel), (channel, arg1), (channel, arg2)]);
+  var res = join(thread_group);
+  return 0;
+}

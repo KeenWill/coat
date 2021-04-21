@@ -24,6 +24,7 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token WHILE    /* while */
 %token RETURN   /* return */
 %token VAR      /* var */
+%token CHAN     /* chan */
 %token STRUCT   /* struct */
 %token SEMI     /* ; */
 %token COMMA    /* , */
@@ -62,6 +63,12 @@ let loc (startpos:Lexing.position) (endpos:Lexing.position) (elt:'a) : 'a node =
 %token GTGTGT   /* >>> */
 %token ARROW    /* -> */
 %token QUESTION /* ? */
+
+%token MAKECHAN
+%token SENDCHAN
+%token RECVCHAN
+%token SPAWN
+%token JOIN
 
 %left IOR
 %left IAND
@@ -118,12 +125,17 @@ decl_field:
 arglist:
   | l=separated_list(COMMA, pair(ty,IDENT)) { l }
     
-ty:
-  | TINT   { TInt }
-  | r=rtyp { TRef r } %prec LOW
-  | r=rtyp QUESTION { TNullRef r }
-  | LPAREN t=ty RPAREN { t } 
-  | TBOOL  { TBool } 
+ty: 
+  | CHAN LT t=ty COMMA m1=mult COMMA m2=mult GT { TLinTy (TChan (t, m1, m2)) }
+  | TINT   { TRegTy TInt }
+  | r=rtyp { TRegTy (TRef r) } %prec LOW
+  | r=rtyp QUESTION { TRegTy (TNullRef r) }
+  | TBOOL  { TRegTy TBool } 
+  | LPAREN t=ty RPAREN { t }
+
+%inline mult:
+  | i=INT { MNum (Int64.to_int i) }
+  | STAR { MArb }
 
 %inline ret_ty:
   | TVOID  { RetVoid }
@@ -206,7 +218,21 @@ exp:
   | u=uop e=exp         { loc $startpos $endpos @@ Uop (u, e) }
   | LENGTH LPAREN e=exp RPAREN
                         { loc $startpos $endpos @@ Length(e) }
+  | MAKECHAN LT t=ty COMMA m1=mult COMMA m2=mult GT LPAREN RPAREN
+                        { loc $startpos $endpos @@ CMakeChan (t, m1, m2)  }
+  | SENDCHAN LPAREN e1=exp COMMA e2=exp RPAREN
+                        { loc $startpos $endpos @@ CSendChan (e1, e2) }
+  | RECVCHAN LT t=ty GT LPAREN e=exp RPAREN
+                        { loc $startpos $endpos @@ CRecvChan (t, e) }
+  | SPAWN LPAREN LBRACKET cs1=separated_list(COMMA, exp) RBRACKET
+    COMMA LBRACKET cs2=separated_list(COMMA, spawn_args)
+    RBRACKET RPAREN
+                        { loc $startpos $endpos @@ CSpawn(cs1, cs2) }
+  | JOIN LPAREN e=exp RPAREN { loc $startpos $endpos @@ CJoin (e) }
   | LPAREN e=exp RPAREN { e } 
+
+%inline spawn_args:
+  | LPAREN a=separated_list(COMMA, IDENT) RPAREN { a }
 
 field:
   | id=IDENT EQ e=exp { (id, e) }

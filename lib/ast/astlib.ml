@@ -61,6 +61,23 @@ let rec print_list_aux fmt sep pp l =
 let rec print_ty_aux fmt t =
   let pps = pp_print_string fmt in
   match t with
+  | TLinTy TMoved -> failwith "TMoved should have no inhabitants"
+  | TRegTy regty -> print_regty_aux fmt regty
+  | TLinTy (TChan (ty, m1, m2)) ->
+      pps "chan<";
+      print_ty_aux fmt ty;
+      print_mult_aux fmt m1;
+      print_mult_aux fmt m2;
+      pps ">"
+
+and print_mult_aux fmt t =
+  let pps = pp_print_string fmt in
+  match t with MNum i -> pps (string_of_int i) | MArb -> pps "*"
+
+and print_regty_aux fmt t =
+  let pps = pp_print_string fmt in
+  match t with
+  | TThreadGroup -> failwith "Should never see this in source"
   | TBool -> pps "bool"
   | TInt -> pps "int"
   | TRef r -> print_rty_aux fmt r
@@ -175,7 +192,45 @@ and print_exp_aux level fmt e =
           pps "; ")
         l;
       pps "}";
-      pp_close_box fmt ());
+      pp_close_box fmt ()
+  | CMakeChan (ty, m1, m2) ->
+      pps "makechan<";
+      print_ty_aux fmt ty;
+      pps ",";
+      print_mult_aux fmt m1;
+      pps ",";
+      print_mult_aux fmt m2;
+      pps ">()"
+  | CSendChan (exp1, exp2) ->
+      pps "sendchan(";
+      print_exp_aux this_level fmt exp1;
+      pps ",";
+      print_exp_aux this_level fmt exp2;
+      pps ")"
+  | CRecvChan (ty, exp) ->
+      pps "recvchan<";
+      print_ty_aux fmt ty;
+      pps ">(";
+      print_exp_aux this_level fmt exp;
+      pps ")"
+  | CSpawn (fptrs, args) ->
+      pps "spawn([";
+      print_list_aux fmt (fun () -> pps ", ") (print_exp_aux this_level) fptrs;
+      pps "], ";
+      pps "[";
+      print_list_aux fmt
+        (fun () -> pps ", ")
+        (fun fmt expl ->
+          pps "(";
+          print_list_aux fmt (fun () -> pps ", ") print_id_aux expl;
+          pps ")")
+        args;
+      pps "])"
+  | CJoin exp ->
+      pps "join(";
+      print_exp_aux this_level fmt exp;
+      pps ")");
+
   if this_level < level then pps ")"
 
 and print_cfield_aux l fmt (name, exp) =
@@ -297,7 +352,7 @@ and print_stmt_aux fmt s =
       pps ") ";
       print_block_aux fmt body
 
-let print_fdecl_aux fmt { elt = { frtyp; fname; args; body } } =
+let print_fdecl_aux fmt { elt = { frtyp; fname; args; body }; _ } =
   let pps = pp_print_string fmt in
   let ppsp = pp_print_space fmt in
   let ppnl = pp_force_newline fmt in
@@ -418,8 +473,20 @@ let ml_string_of_node (f : 'a -> string) ({ elt; loc } : 'a node) =
 
 let rec ml_string_of_ty (t : ty) : string =
   match t with
+  | TLinTy TMoved -> failwith "TMoved should have no inhabitants"
+  | TRegTy regty -> ml_string_of_regty regty
+  | TLinTy (TChan (ty, m1, m2)) ->
+      sp "TChan (%s, %s, %s)" (ml_string_of_ty ty) (ml_string_of_mult m1)
+        (ml_string_of_mult m2)
+
+and ml_string_of_mult (m : mult) : string =
+  match m with MNum i -> string_of_int i | MArb -> "*"
+
+and ml_string_of_regty (t : regty) : string =
+  match t with
   | TBool -> "TBool"
   | TInt -> "TInt"
+  | TThreadGroup -> failwith "Should never see this in source"
   | TRef r -> sp "TRef (%s)" (ml_string_of_reft r)
   | TNullRef r -> sp "TNullRef (%s)" (ml_string_of_reft r)
 
@@ -490,6 +557,17 @@ let rec ml_string_of_exp_aux (e : exp) : string =
         (ml_string_of_exp e2)
   | Uop (u, e) -> sp "Uop (%s, %s)" (ml_string_of_unop u) (ml_string_of_exp e)
   | Length e -> sp "Length (%s)" (ml_string_of_exp e)
+  | CMakeChan (ty, m1, m2) ->
+      sp "CMakeChan (%s, %s, %s)" (ml_string_of_ty ty) (ml_string_of_mult m1)
+        (ml_string_of_mult m2)
+  | CSendChan (exp1, exp2) ->
+      sp "CSendChan (%s, %s)" (ml_string_of_exp exp1) (ml_string_of_exp exp2)
+  | CRecvChan (ty, exp) -> sp "CRecvChan (%s, %s)" (ml_string_of_ty ty) (ml_string_of_exp exp)
+  | CSpawn (fptrs, args) ->
+      sp "CSpawn (%s, %s)"
+        (ml_string_of_list ml_string_of_exp fptrs)
+        (ml_string_of_list (ml_string_of_list ml_string_of_id) args)
+  | CJoin exp -> sp "CJoin %s" (ml_string_of_exp exp)
 
 and ml_string_of_exp (e : exp node) : string =
   ml_string_of_node ml_string_of_exp_aux e

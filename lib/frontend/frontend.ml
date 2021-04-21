@@ -1,3 +1,5 @@
+include Ast_lib.Ast
+include Ll_lib.Ll
 open Ll_lib
 open Ll_lib.Llutil
 open Ast_lib
@@ -127,6 +129,9 @@ module TypeCtxt = struct
     | Some x -> (List.(nth fields x).ftyp, Int64.of_int x)
 end
 
+let wrap_fun_name (fun_name : string) = fun_name ^ "_wrap"
+let wrap_str_name (fun_name : string) = fun_name ^ "_struct_args"
+
 (* compiling OAT types ------------------------------------------------------ *)
 
 (* The mapping of source types onto LLVMlite is straightforward. Booleans and ints
@@ -137,11 +142,20 @@ end
    NOTE: structure types are named, so they compile to their named form
 *)
 
-let rec cmp_ty (ct : TypeCtxt.t) : Ast.ty -> Ll.ty = function
+let rec cmp_ty (ct: TypeCtxt.t) : Ast.ty -> Ll.ty = function
+  | Ast.TRegTy regty -> cmp_regty ct regty
+  | Ast.TLinTy lty -> cmp_lty ct lty
+
+and cmp_regty (ct : TypeCtxt.t) : Ast.regty -> Ll.ty = function
   | Ast.TBool -> I1
   | Ast.TInt -> I64
   | Ast.TRef r -> Ptr (cmp_rty ct r)
   | Ast.TNullRef r -> Ptr (cmp_rty ct r)
+  | Ast.TThreadGroup -> I64
+
+and cmp_lty (ct: TypeCtxt.t) : Ast.lty -> Ll.ty = function
+  | TChan (t, _, _) ->  Ptr I64
+  | TMoved -> failwith "should never compile TMoved"
 
 and cmp_ret_ty ct : Ast.ret_ty -> Ll.ty = function
   | Ast.RetVoid -> Void
@@ -158,13 +172,13 @@ and cmp_rty ct : Ast.rty -> Ll.ty = function
       Fun (args, ret)
 
 let typ_of_binop : Ast.binop -> Ast.ty * Ast.ty * Ast.ty = function
-  | Add | Mul | Sub | Shl | Shr | Sar | IAnd | IOr -> (TInt, TInt, TInt)
-  | Eq | Neq | Lt | Lte | Gt | Gte -> (TInt, TInt, TBool)
-  | And | Or -> (TBool, TBool, TBool)
+  | Add | Mul | Sub | Shl | Shr | Sar | IAnd | IOr -> (TRegTy TInt, TRegTy TInt, TRegTy TInt)
+  | Eq | Neq | Lt | Lte | Gt | Gte -> (TRegTy TInt, TRegTy TInt, TRegTy TBool)
+  | And | Or -> (TRegTy TBool, TRegTy TBool, TRegTy TBool)
 
 let typ_of_unop : Ast.unop -> Ast.ty * Ast.ty = function
-  | Neg | Bitnot -> (TInt, TInt)
-  | Lognot -> (TBool, TBool)
+  | Neg | Bitnot -> (TRegTy TInt, TRegTy TInt)
+  | Lognot -> (TRegTy TBool, TRegTy TBool)
 
 (* Some useful helper functions *)
 
@@ -194,7 +208,7 @@ let rec size_oat_struct (l : Ast.field list) =
 let oat_alloc_array ct (t : Ast.ty) (size : Ll.operand) :
     Ll.ty * Ll.operand * stream =
   let ans_id, arr_id = (gensym "array", gensym "raw_array") in
-  let ans_ty = cmp_ty ct @@ TRef (RArray t) in
+  let ans_ty = cmp_ty ct @@ TRegTy (TRef (RArray t)) in
   let arr_ty : Ll.ty = Ptr I64 in
   ( ans_ty,
     Id ans_id,
@@ -206,7 +220,7 @@ let oat_alloc_array ct (t : Ast.ty) (size : Ll.operand) :
 
 let oat_alloc_struct ct (id : Ast.id) : Ll.ty * Ll.operand * stream =
   let ret_id, arr_id = (gensym "struct", gensym "raw_struct") in
-  let ans_ty = cmp_ty ct (TRef (RStruct id)) in
+  let ans_ty = cmp_ty ct @@ TRegTy (TRef (RStruct id)) in
   let arr_ty : Ll.ty = Ptr I64 in
   ( ans_ty,
     Id ret_id,
@@ -225,6 +239,18 @@ let str_arr_ty (s : string) : Ll.ty = Array (1 + String.length s, I8)
 let i1_op_of_bool (b : bool) : Ll.operand = Ll.Const (if b then 1L else 0L)
 
 let i64_op_of_int (i : int) : Ll.operand = Ll.Const (Int64.of_int i)
+
+let payload_ty_of_chan (c : Ctxt.t) (tc : TypeCtxt.t) ({ elt; _ } : Ast.exp node) : Ll.ty =
+  match elt with
+  | Id x ->
+      let pt, _ = Ctxt.lookup x c in
+      begin match pt with Ptr t -> t | _ -> failwith "Unexpected variable type"
+      end
+  | _ -> failwith "payload_ty_of_chan: passed in exp is not a channel"
+
+  
+  
+
 
 let cmp_binop t (b : Ast.binop) : Ll.operand -> Ll.operand -> Ll.insn =
   let ib b op1 op2 = Ll.Binop (b, t, op1, op2) in
@@ -247,6 +273,58 @@ let cmp_binop t (b : Ast.binop) : Ll.operand -> Ll.operand -> Ll.insn =
   | Ast.Gt -> ic Ll.Sgt
   | Ast.Gte -> ic Ll.Sge
 
+
+(* Compile a global initializer, returning the resulting LLVMlite global
+   declaration, and a list of additional global declarations.
+*)
+let rec cmp_gexp c (tc : TypeCtxt.t) (e : Ast.exp Ast.node) :
+    Ll.gdecl * (Ll.gid * Ll.gdecl) list =
+  match e.elt with
+  | CNull r -> ((cmp_ty tc @@ TRegTy (TNullRef r), GNull), [])
+  | CBool b -> ((I1, if b then GInt 1L else GInt 0L), [])
+  | CInt i -> ((I64, GInt i), [])
+  | Id id -> ((fst @@ Ctxt.lookup id c, GGid id), [])
+  | CStr s ->
+      let gid = gensym "str" in
+      let ll_ty = str_arr_ty s in
+      let cast = Ll.GBitcast (Ptr ll_ty, GGid gid, Ptr I8) in
+      ((Ptr I8, cast), [ (gid, (ll_ty, GString s)) ])
+  | CArr (u, cs) ->
+      let elts, gs =
+        List.fold_right
+          (fun cst (elts, gs) ->
+            let gd, gs' = cmp_gexp c tc cst in
+            (gd :: elts, gs' @ gs))
+          cs ([], [])
+      in
+      let len = List.length cs in
+      let ll_u = cmp_ty tc u in
+      let gid = gensym "global_arr" in
+      let arr_t : Ll.ty = Struct [ I64; Array (len, ll_u) ] in
+      let arr_i : Ll.ginit =
+        GStruct
+          [ (I64, GInt (Int64.of_int len)); (Array (len, ll_u), GArray elts) ]
+      in
+      let final_t : Ll.ty = Struct [ I64; Array (0, ll_u) ] in
+      let cast : Ll.ginit = GBitcast (Ptr arr_t, GGid gid, Ptr final_t) in
+      ((Ptr final_t, cast), (gid, (arr_t, arr_i)) :: gs)
+  | CStruct (id, cs) ->
+      let fields : Ast.field list = TypeCtxt.lookup id tc in
+      let elts, gs =
+        List.fold_right
+          (fun (fs : Ast.field) (elts, gs) ->
+            let gd, gs' =
+              cmp_gexp c tc
+                (snd (List.find (fun (xid, xname) -> xid = fs.fieldName) cs))
+            in
+            (gd :: elts, gs' @ gs))
+          fields ([], [])
+      in
+      let gid = gensym "global_struct" in
+      ((Ptr (Namedt id), GGid gid), (gid, (Namedt id, GStruct elts)) :: gs)
+  | _ -> failwith "bad global initializer"
+
+
 (* Compiles an expression exp in context c, outputting the Ll operand that will
    receive the value of the expression, and the stream of instructions
    implementing the expression. 
@@ -255,7 +333,7 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
     Ll.ty * Ll.operand * stream =
   match exp.elt with
   | Ast.CInt i -> (I64, Const i, [])
-  | Ast.CNull r -> (cmp_ty tc (TNullRef r), Null, [])
+  | Ast.CNull r -> (cmp_ty tc @@ TRegTy (TNullRef r), Null, [])
   | Ast.CBool b -> (I1, i1_op_of_bool b, [])
   | Ast.CStr s ->
       let gid = gensym "str_arr" in
@@ -409,6 +487,122 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
       let ans_ty, ptr_op, code = cmp_exp_lhs tc c exp in
       let ans_id = gensym "proj" in
       (ans_ty, Id ans_id, code >:: I (ans_id, Load (Ptr ans_ty, ptr_op)))
+  | Ast.CMakeChan _ ->
+      let ret_id, chan_id = (gensym "chan", gensym "raw_chan") in
+      let chan_ty : Ll.ty = Ptr I64 in
+      chan_ty,
+      Id chan_id,
+      lift [
+        (chan_id, Call (chan_ty, Gid "chan_create", []));
+        (* (ret_id, Bitcast (chan_ty, Id chan_id, ans_ty)); *)
+      ]
+  | Ast.CSendChan (echan, epayload) -> 
+      let _, chan_op, chan_code = cmp_exp tc c echan in
+      let payload_ty, payload_op, payload_code = cmp_exp tc c epayload in
+      let void_id = gensym "void" in
+      let bitcast_id = gensym "bitcast" in
+      I64,
+      Id void_id,
+      (chan_code >@ payload_code >:: 
+        I (bitcast_id, Bitcast (payload_ty, payload_op, I64)) >::
+        I (void_id, Call (I64, Gid "chan_send", [(Ptr I64, chan_op); (I64, Id bitcast_id)])))
+  | Ast.CRecvChan (oat_payload_ty, echan) ->
+      let chan_ty, chan_op, chan_code = cmp_exp tc c echan in
+      let payload_id = gensym "payload" in
+      let ll_payload_ty = cmp_ty tc oat_payload_ty in
+      let ret_id = gensym "ret" in
+      ll_payload_ty,
+      Id ret_id,
+      (chan_code >@ lift [
+        (payload_id, Call (I64, Gid "chan_recv", [Ptr I64, chan_op]));
+        (ret_id, Bitcast (I64, Id payload_id, ll_payload_ty))
+      ])
+  
+  | Ast.CSpawn (efuncpointers, eargs_arr) ->
+      let len : int64 = Int64.of_int @@ List.length efuncpointers in 
+      
+      let rarr_ty, rarr_op, rarr_code = cmp_exp tc c @@ no_loc @@ 
+        NewArr (TRegTy TInt, no_loc (CInt len)) in
+
+      let counter = ref (-1) in
+
+      let spawn_code : stream = List.fold_left2 (fun acc { elt; _ } uids ->
+        match elt with
+        | Ast.Id fun_name ->
+          counter := !counter + 1;
+
+          (* let fun_ty, fun_op, fun_code = cmp_exp tc c elt in  *)
+          let arg_tys_and_ops_and_code : ((ty * operand * stream) list) = 
+            List.map (fun uid ->
+              let ty, op, code = cmp_exp tc c @@ no_loc (Ast.Id uid) in
+              (ty, op, code)
+            ) uids in
+          let arg_tys, _, arg_code = 
+            List.fold_left (fun (argacc, opacc, stracc) (arg, op, str) ->  
+              arg :: argacc, op :: opacc, str >@ stracc
+            ) ([],[],[]) arg_tys_and_ops_and_code in
+
+
+          let struct_name = wrap_str_name fun_name in
+          let fields : Ast.field list = TypeCtxt.lookup struct_name tc in
+          let struct_ty, struct_op, alloc_code = oat_alloc_struct tc struct_name in
+          let add_field (s : stream) ({ fieldName; ftyp } : field) 
+              ((arg_ty, arg_op, _) : ty * operand * stream) =
+            let index = TypeCtxt.index_of_field struct_name fieldName tc in
+            let ind = gensym "ind" in
+            s >@ lift
+                [
+                  ( ind,
+                    Gep (struct_ty, struct_op, [ Const 0L; i64_op_of_int index ])
+                  );
+                  (gensym "store", Store (arg_ty, arg_op, Id ind));
+                ]
+          in
+          let ind_code = List.fold_left2 add_field [] fields arg_tys_and_ops_and_code in
+          
+          let ind = gensym "ind" in
+          let fun_ind = gensym "fun_ind" in 
+          let str_ind = gensym "str_ind" in
+          let fun_ty = Ctxt.lookup (wrap_fun_name fun_name) c in 
+          let wrapped_fun_ty = Ptr (Fun ([ Ptr I64 ], I64)) in
+          let ret_id, thrd_id = (gensym "chan", gensym "raw_chan") in
+          arg_code >@ alloc_code >@ ind_code >@
+          lift
+            [
+              (str_ind, Bitcast (struct_ty, struct_op, Ptr I64));
+              (fun_ind, Bitcast (fst fun_ty, Gid (wrap_fun_name fun_name), wrapped_fun_ty));
+              (thrd_id, Ll.Call (I64, Gid "thread_spawn", [ (wrapped_fun_ty, Id (fun_ind)); (Ptr I64, Id str_ind) ]) );
+              
+              ( ind,
+                Gep (rarr_ty, rarr_op, [ Const 0L; Const 1L; i64_op_of_int !counter ])
+              );
+              (gensym "store", Store (I64, Id thrd_id, Id ind));
+
+            ] @ acc
+        | _ -> failwith "CSpawn not a function passed in"
+      ) [] efuncpointers eargs_arr in
+
+      rarr_ty, rarr_op, rarr_code >@ spawn_code
+
+  | Ast.CJoin (e_arr_tid) -> (* e_tid should be an array of tids *)
+
+      let tid_ty, tid_op, tid_code = cmp_exp tc c e_arr_tid in
+      match tid_ty with
+      | Ptr (Struct [ I64; Array (_, I64) ])  -> 
+          let res = gensym "join_res" in 
+          let cast_op = gensym "bitcast" in
+
+          I64,
+          Id res,
+          tid_code >@ lift [
+            (cast_op, Bitcast (tid_ty, tid_op, Ptr I64));
+            (res, Ll.Call (I64, Gid "join_all_threads", [ Ptr I64, Id cast_op ]) ); 
+          ]
+      | _ -> failwith "Please pass array to CJoin :(" 
+
+
+      
+      
 
 and cmp_exp_lhs (tc : TypeCtxt.t) (c : Ctxt.t) (e : Ast.exp Ast.node) :
     Ll.ty * Ll.operand * stream =
@@ -518,7 +712,7 @@ and cmp_stmt (tc : TypeCtxt.t) (c : Ctxt.t) (rt : Ll.ty)
         >:: L lt >@ then_code >:: T (Br lm) >:: L le >@ else_code >:: T (Br lm)
         >:: L lm )
   | Ast.Cast (typ, id, exp, notnull, null) ->
-      let translated_typ = cmp_ty tc (TRef typ) in
+      let translated_typ = cmp_ty tc @@ TRegTy (TRef typ) in
       let guard_op, guard_code = cmp_exp_as tc c exp translated_typ in
       let res_id = gensym id in
       let c' = Ctxt.add c id (Ptr translated_typ, Id res_id) in
@@ -595,8 +789,12 @@ let cmp_function_ctxt (tc : TypeCtxt.t) (c : Ctxt.t) (p : Ast.prog) : Ctxt.t =
   List.fold_left
     (fun c -> function
       | Ast.Gfdecl { elt = { frtyp; fname; args } } ->
+          let struct_name = wrap_str_name fname in
           let ft = Ast.TRef (RFun (List.map fst args, frtyp)) in
-          Ctxt.add c fname (cmp_ty tc ft, Gid fname)
+          let ft_wrap = Ast.TRef (RFun ([TRegTy (TRef (RStruct struct_name))], frtyp))  in
+          let wrap_name = wrap_fun_name fname in
+          let c = Ctxt.add c fname (cmp_ty tc (TRegTy ft), Gid fname) in
+          Ctxt.add c wrap_name (cmp_ty tc (TRegTy ft_wrap), Gid wrap_name)
       | _ -> c)
     c p
 
@@ -610,7 +808,7 @@ let cmp_global_ctxt (tc : TypeCtxt.t) (c : Ctxt.t) (p : Ast.prog) : Ctxt.t =
   let gexp_ty (c : Ctxt.t) : Ast.exp -> Ll.ty = function
     | Id id -> fst (Ctxt.lookup id c)
     | CStruct (t, cs) -> Ptr (Namedt t)
-    | CNull r -> cmp_ty tc (TNullRef r)
+    | CNull r -> cmp_ty tc @@ TRegTy (TNullRef r)
     | CBool b -> I1
     | CInt i -> I64
     | CStr s -> Ptr I8
@@ -654,64 +852,31 @@ let cmp_fdecl (tc : TypeCtxt.t) (c : Ctxt.t) (f : Ast.fdecl Ast.node) :
     let return_val =
       match frtyp with
       | RetVoid -> None
-      | RetVal TBool | RetVal TInt -> Some (Ll.Const 0L)
-      | RetVal (TRef _ | TNullRef _) -> Some Null
+      | RetVal TRegTy TBool | RetVal TRegTy TInt -> Some (Ll.Const 0L)
+      | RetVal (TRegTy TRef _ | TRegTy TNullRef _) -> Some Null
+      | RetVal TLinTy _ -> Some (Ll.Const 0L)
+      | RetVal (TRegTy TThreadGroup) -> Some (Ll.Const 0L)
     in
     [ T (Ret (ll_rty, return_val)) ]
   in
   let f_cfg, globals = cfg_of_stream (args_code >@ block_code >@ return_code) in
   ({ f_ty; f_param; f_cfg }, globals)
 
-(* Compile a global initializer, returning the resulting LLVMlite global
-   declaration, and a list of additional global declarations.
-*)
-let rec cmp_gexp c (tc : TypeCtxt.t) (e : Ast.exp Ast.node) :
-    Ll.gdecl * (Ll.gid * Ll.gdecl) list =
-  match e.elt with
-  | CNull r -> ((cmp_ty tc (TNullRef r), GNull), [])
-  | CBool b -> ((I1, if b then GInt 1L else GInt 0L), [])
-  | CInt i -> ((I64, GInt i), [])
-  | Id id -> ((fst @@ Ctxt.lookup id c, GGid id), [])
-  | CStr s ->
-      let gid = gensym "str" in
-      let ll_ty = str_arr_ty s in
-      let cast = Ll.GBitcast (Ptr ll_ty, GGid gid, Ptr I8) in
-      ((Ptr I8, cast), [ (gid, (ll_ty, GString s)) ])
-  | CArr (u, cs) ->
-      let elts, gs =
-        List.fold_right
-          (fun cst (elts, gs) ->
-            let gd, gs' = cmp_gexp c tc cst in
-            (gd :: elts, gs' @ gs))
-          cs ([], [])
-      in
-      let len = List.length cs in
-      let ll_u = cmp_ty tc u in
-      let gid = gensym "global_arr" in
-      let arr_t : Ll.ty = Struct [ I64; Array (len, ll_u) ] in
-      let arr_i : Ll.ginit =
-        GStruct
-          [ (I64, GInt (Int64.of_int len)); (Array (len, ll_u), GArray elts) ]
-      in
-      let final_t : Ll.ty = Struct [ I64; Array (0, ll_u) ] in
-      let cast : Ll.ginit = GBitcast (Ptr arr_t, GGid gid, Ptr final_t) in
-      ((Ptr final_t, cast), (gid, (arr_t, arr_i)) :: gs)
-  | CStruct (id, cs) ->
-      let fields : Ast.field list = TypeCtxt.lookup id tc in
-      let elts, gs =
-        List.fold_right
-          (fun (fs : Ast.field) (elts, gs) ->
-            let gd, gs' =
-              cmp_gexp c tc
-                (snd (List.find (fun (xid, xname) -> xid = fs.fieldName) cs))
-            in
-            (gd :: elts, gs' @ gs))
-          fields ([], [])
-      in
-      let gid = gensym "global_struct" in
-      ((Ptr (Namedt id), GGid gid), (gid, (Namedt id, GStruct elts)) :: gs)
-  | _ -> failwith "bad global initializer"
-
+let wrap_fdecl (f : Ast.fdecl Ast.node) (struct_name: string) (struct_fields: Ast.field list) : Ast.fdecl Ast.node =
+  Ast.(
+    let eargs = List.map (fun ({ fieldName; ftyp } : field) -> 
+      no_loc @@ Proj (no_loc (Id "wrap_args"), fieldName)
+    ) struct_fields in 
+    let fdecl : fdecl = 
+      {
+          frtyp = (f.elt.frtyp)
+        ; fname = (wrap_fun_name f.elt.fname)
+        ; args  = [ TRegTy (TRef (RStruct struct_name)), "wrap_args" ]
+        ; body  = [ no_loc @@ SCall (no_loc (Id f.elt.fname), eargs) ]
+      } in
+    no_loc fdecl
+  )
+  
 (* Oat internals function context ------------------------------------------- *)
 let internals =
   [
@@ -719,6 +884,14 @@ let internals =
     ("oat_alloc_array", Ll.Fun ([ I64 ], Ptr I64));
     ("oat_assert_not_null", Ll.Fun ([ Ptr I8 ], Void));
     ("oat_assert_array_length", Ll.Fun ([ Ptr I64; I64 ], Void));
+    
+    (* TODO: Double check these types *)
+    ("chan_create", Ll.Fun ([], Ptr I64));
+    ("chan_send", Ll.Fun ([ Ptr I64; I64 ], I64));
+    ("chan_recv", Ll.Fun ([ Ptr I64 ], I64));
+    ("thread_spawn", Ll.Fun ([ Ptr (Ll.Fun ([ Ptr I64 ], I64)); Ptr I64 ], I64));
+    ("thread_join", Ll.Fun ([ I64 ], I64));
+    ("join_all_threads", Ll.Fun ([ Ptr I64 ], I64));
   ]
 
 (* Oat builtin function context --------------------------------------------- *)
@@ -744,11 +917,26 @@ let cmp_prog (p : Ast.prog) : Ll.prog =
       (fun c (i, t) -> Ctxt.add c i (Ll.Ptr t, Gid i))
       Ctxt.empty builtins
   in
+
+  let tc = List.fold_left (fun tc d  ->
+    match d with
+    | Ast.Gfdecl fd ->
+      let struct_name = wrap_str_name fd.elt.fname in
+      let struct_ty : Ast.field list = 
+        List.map (fun (ty, name) -> 
+          {fieldName = name; ftyp = ty}
+        ) fd.elt.args in
+      TypeCtxt.add tc struct_name struct_ty
+    | _ -> tc
+  ) tc p in
+
   let fc = cmp_function_ctxt tc init_ctxt p in
 
   (* build global variable context *)
   let c = cmp_global_ctxt tc fc p in
   (* compile functions and global variables *)
+
+
   let fdecls, gdecls =
     List.fold_right
       (fun d (fs, gs) ->
@@ -757,8 +945,14 @@ let cmp_prog (p : Ast.prog) : Ll.prog =
             let ll_gd, gs' = cmp_gexp c tc gd.init in
             (fs, (gd.name, ll_gd) :: gs' @ gs)
         | Ast.Gfdecl fd ->
+            let struct_name = wrap_str_name fd.elt.fname in
+            let struct_ty : Ast.field list = 
+              List.map (fun (ty, name) -> 
+                {fieldName = name; ftyp = ty}
+              ) fd.elt.args in
             let fdecl, gs' = cmp_fdecl tc c fd in
-            ((fd.elt.fname, fdecl) :: fs, gs' @ gs)
+            let fdecl_wrap, gs_wrap = cmp_fdecl tc c @@ wrap_fdecl fd struct_name struct_ty in
+            ((wrap_fun_name fd.elt.fname, fdecl_wrap) :: (fd.elt.fname, fdecl) :: fs, gs_wrap @ gs' @ gs)
         | Ast.Gtdecl _ -> (fs, gs))
       p ([], [])
   in

@@ -26,6 +26,12 @@
   (* Lexing reserved words *)
   let reserved_words = [
   (* Keywords *)
+  ("chan", CHAN);
+  ("makechan", MAKECHAN);
+  ("sendchan", SENDCHAN);
+  ("recvchan", RECVCHAN);
+  ("spawn", SPAWN);
+  ("join", JOIN);
   ("struct", STRUCT);
   ("null", NULL);
   ("void", TVOID);
