@@ -1,0 +1,11 @@
+int program(int argc, string[] argv) {
+  var channel = makechan<int,0,1>();
+  var x = channel;
+  var y = x;
+
+  var res = recvchan<int>(y);
+
+  var y = makechan<int, 0, 1>();
+
+  return 0;
+}

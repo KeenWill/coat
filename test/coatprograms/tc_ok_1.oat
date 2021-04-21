@@ -1,0 +1,9 @@
+int program(int argc, string[] argv) {
+  var channel = makechan<int,0,1>();
+  var x = channel;
+  var y = x;
+
+  var res = sendchan(y, 1);
+
+  return 0;
+}
