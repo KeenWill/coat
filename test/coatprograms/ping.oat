@@ -1,9 +1,9 @@
 void server(chan<chan<int, 0, 1>, *, *> c) {
-  var i = 10;
+  var i = 2;
   while (i > 0) {
     i = i - 1;
     var r = recvchan<chan<int, 0, 1> >(c);
-    var res = sendchan(r, 1);
+    var res = sendchan(r, i);
   }
   return;
 }
@@ -15,6 +15,7 @@ void client_send(chan<chan<int, 0, 1>, *,* > c, chan<int, 0, 1> r) {
 
 void client_wait(chan<int, 1, 0> r) {
   var res = recvchan<int>(r);
+  print_int(res);
   return;
 }
 

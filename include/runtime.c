@@ -108,7 +108,7 @@ void print_string (char* str) {
 }
 
 void print_int (int64_t i) {
-  printf ("%ld", (long)i);
+  printf ("%ld\n", (long)i);
 }
 
 void print_bool (int64_t i) {

@@ -524,16 +524,12 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
       let rarr_ty, rarr_op, rarr_code = cmp_exp tc c @@ no_loc @@ 
         NewArr (TRegTy TInt, no_loc (CInt len)) in
 
-      let counter = ref 0 in
-
-      List.iter (fun (lbl, fields) -> print_endline lbl) tc;
+      let counter = ref (-1) in
 
       let spawn_code : stream = List.fold_left2 (fun acc { elt; _ } uids ->
         match elt with
         | Ast.Id fun_name ->
           counter := !counter + 1;
-
-          print_endline fun_name;
 
           (* let fun_ty, fun_op, fun_code = cmp_exp tc c elt in  *)
           let arg_tys_and_ops_and_code : ((ty * operand * stream) list) = 
@@ -586,7 +582,7 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
         | _ -> failwith "CSpawn not a function passed in"
       ) [] efuncpointers eargs_arr in
 
-      rarr_ty, rarr_op, rarr_code @ spawn_code
+      rarr_ty, rarr_op, rarr_code >@ spawn_code
 
   | Ast.CJoin (e_arr_tid) -> (* e_tid should be an array of tids *)
 
