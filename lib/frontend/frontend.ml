@@ -518,7 +518,7 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
         (ret_id, Bitcast (I64, Id payload_id, ll_payload_ty))
       ])
   
-  | Ast.CSpawn (efuncpointers, eargs_arr) ->
+  | Ast.CSpawn (efuncpointers, eargs_list) ->
       let len : int64 = Int64.of_int @@ List.length efuncpointers in 
       
       let rarr_ty, rarr_op, rarr_code = cmp_exp tc c @@ no_loc @@ 
@@ -526,21 +526,21 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
 
       let counter = ref (-1) in
 
+      (* For each function and associated argument list, spawn a thread. *)
       let spawn_code : stream = List.fold_left2 (fun acc { elt; _ } uids ->
         match elt with
         | Ast.Id fun_name ->
           counter := !counter + 1;
 
-          (* let fun_ty, fun_op, fun_code = cmp_exp tc c elt in  *)
+          (* Loop over all of the args to pass to this function and compile them. *)
           let arg_tys_and_ops_and_code : ((ty * operand * stream) list) = 
             List.map (fun uid ->
               let ty, op, code = cmp_exp tc c @@ no_loc (Ast.Id uid) in
               (ty, op, code)
             ) uids in
-          let arg_tys, _, arg_code = 
-            List.fold_left (fun (argacc, opacc, stracc) (arg, op, str) ->  
-              arg :: argacc, op :: opacc, str >@ stracc
-            ) ([],[],[]) arg_tys_and_ops_and_code in
+          let arg_code = 
+            List.fold_left 
+              (fun stracc (_, _, str) -> str >@ stracc) [] arg_tys_and_ops_and_code in
 
 
           let struct_name = wrap_str_name fun_name in
@@ -549,42 +549,46 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
           let add_field (s : stream) ({ fieldName; ftyp } : field) 
               ((arg_ty, arg_op, _) : ty * operand * stream) =
             let index = TypeCtxt.index_of_field struct_name fieldName tc in
-            let ind = gensym "ind" in
+            let arg_ind = gensym "ind" in
             s >@ lift
                 [
-                  ( ind,
-                    Gep (struct_ty, struct_op, [ Const 0L; i64_op_of_int index ])
-                  );
-                  (gensym "store", Store (arg_ty, arg_op, Id ind));
+                  (* Get a pointer into the struct argument that we are going to
+                     pass to the wrapped function. Then store the argument
+                     padded to add_field into the struct. *)
+                  (arg_ind, Gep (struct_ty, struct_op, [ Const 0L; i64_op_of_int index ]));
+                  (gensym "store", Store (arg_ty, arg_op, Id arg_ind));
                 ]
           in
           let ind_code = List.fold_left2 add_field [] fields arg_tys_and_ops_and_code in
           
-          let ind = gensym "ind" in
+          let thrd_id = gensym "thrd_id" in
+          let thrd_ind = gensym "ind" in
           let fun_ind = gensym "fun_ind" in 
           let str_ind = gensym "str_ind" in
           let fun_ty = Ctxt.lookup (wrap_fun_name fun_name) c in 
           let wrapped_fun_ty = Ptr (Fun ([ Ptr I64 ], I64)) in
-          let ret_id, thrd_id = (gensym "chan", gensym "raw_chan") in
           arg_code >@ alloc_code >@ ind_code >@
           lift
             [
+              (* Bitcast the struct and function to match the parameter types of
+                 thread_spawn. Then call the function and save the output to
+                 thrd_id. *)
               (str_ind, Bitcast (struct_ty, struct_op, Ptr I64));
               (fun_ind, Bitcast (fst fun_ty, Gid (wrap_fun_name fun_name), wrapped_fun_ty));
               (thrd_id, Ll.Call (I64, Gid "thread_spawn", [ (wrapped_fun_ty, Id (fun_ind)); (Ptr I64, Id str_ind) ]) );
               
-              ( ind,
-                Gep (rarr_ty, rarr_op, [ Const 0L; Const 1L; i64_op_of_int !counter ])
-              );
-              (gensym "store", Store (I64, Id thrd_id, Id ind));
+              (* Get a pointer into the thread group array, then store the
+                 thread id of the thread just created into it.  *)
+              (thrd_ind, Gep (rarr_ty, rarr_op, [ Const 0L; Const 1L; i64_op_of_int !counter ]) );
+              (gensym "store", Store (I64, Id thrd_id, Id thrd_ind));
 
             ] @ acc
         | _ -> failwith "CSpawn not a function passed in"
-      ) [] efuncpointers eargs_arr in
+      ) [] efuncpointers eargs_list in
 
       rarr_ty, rarr_op, rarr_code >@ spawn_code
 
-  | Ast.CJoin (e_arr_tid) -> (* e_tid should be an array of tids *)
+  | Ast.CJoin (e_arr_tid) ->
 
       let tid_ty, tid_op, tid_code = cmp_exp tc c e_arr_tid in
       match tid_ty with
