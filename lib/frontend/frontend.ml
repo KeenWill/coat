@@ -538,10 +538,9 @@ let rec cmp_exp (tc : TypeCtxt.t) (c : Ctxt.t) (exp : Ast.exp Ast.node) :
               let ty, op, code = cmp_exp tc c @@ no_loc (Ast.Id uid) in
               (ty, op, code)
             ) uids in
-          let arg_tys, _, arg_code = 
-            List.fold_left (fun (argacc, opacc, stracc) (arg, op, str) ->  
-              arg :: argacc, op :: opacc, str >@ stracc
-            ) ([],[],[]) arg_tys_and_ops_and_code in
+          let arg_code = 
+            List.fold_left 
+              (fun stracc (_, _, str) -> str >@ stracc) [] arg_tys_and_ops_and_code in
 
 
           let struct_name = wrap_str_name fun_name in
