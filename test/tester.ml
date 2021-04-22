@@ -87,34 +87,6 @@ let compile_with_config live regalloc ll_ast =
   let histogram, size = histogram_of_prog asm_ast in
   (histogram, size, asm_ast)
 
-(* let assert_quality fn ll_ast =
-   if not !pass_all then failwith "Your register allocator failed a correctness test" else
-   let _ = Opt.do_opt := true in
-   let ll_ast = Opt.optimize ll_ast in
-   let h_greedy, size_greedy, x86_greedy = compile_with_config "dataflow" "greedy" ll_ast in
-   let h_better, size_better, x86_better = compile_with_config "dataflow" "better" ll_ast in
-   let mem_greedy = Registers.memop_of_prog x86_greedy in
-   let mem_better = Registers.memop_of_prog x86_better in
-   let _ =
-    if !Driver.print_regs_flag then begin
-      Printf.printf "greedy sz: %4d mem: %4d\t\tbetter sz: %4d mem: %4d \t diff_sz: %4d diff_mem: %4d - %s\n"
-      size_greedy mem_greedy size_better mem_better (size_greedy - size_better) (mem_greedy - mem_better) fn
-    end
-   in
-   if
-    mem_better < mem_greedy then ()
-   else if
-    size_better < size_greedy then ()
-   else failwith @@ Printf.sprintf "greedy is better"
-
-   let assert_quality_oat fn () =
-   let oat_ast = parse_oat_file fn in
-   let ll_ast = Frontend.cmp_prog oat_ast in
-   assert_quality fn ll_ast
-
-   let quality_oat tests =
-   List.map (fun (fn, _, _) -> fn, assert_quality_oat fn) tests *)
-
 let fdecl_of_path path =
   Platform.verb @@ Printf.sprintf "* processing file: %s\n" path;
   let ll_ast = parse_ll_file path in
@@ -651,10 +623,9 @@ let%test _ =
   execute_oat_file_with_output
     ("test/hw5programs/compile_struct_fptr.oat", "", "7")
 
-(* TODO: Ying fix undecidability *)
-(* let%test _ =
+let%test _ =
   execute_oat_file_with_output
-    ("test/hw5programs/compile_various_fields.oat", "", "hello253") *)
+    ("test/hw5programs/compile_various_fields.oat", "", "hello253")
 
 (* fptr_tests *)
 let%test _ =
@@ -688,10 +659,9 @@ let%test _ =
   execute_oat_file_with_output
     ("test/hw5programs/compile_function_shadow.oat", "", "12")
 
-(* TODO: Ying fix undecidability *)
-(* let%test _ =
+let%test _ =
   execute_oat_file_with_output
-    ("test/hw5programs/compile_global_struct_fptr.oat", "", "20") *)
+    ("test/hw5programs/compile_global_struct_fptr.oat", "", "20")
 
 let%test _ =
   execute_oat_file_with_output
