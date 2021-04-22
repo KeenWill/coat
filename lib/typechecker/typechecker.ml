@@ -159,9 +159,7 @@ and typecheck_ref l tc (r : rty) : unit =
   | RStruct id -> (
       match Tctxt.lookup_struct_option id tc with
       | None -> type_error l "Unbound struct type"
-      | Some flist ->
-          (* TODO: This makes typechecking undecidable when user writes recursive types *)
-          List.iter (fun { ftyp = ty; _ } -> typecheck_ty l tc ty) flist)
+      | Some _ -> ())
   | RArray t ->
       if is_lin_ty t then type_error l "Arrays cannot contain linear types"
       else typecheck_ty l tc t
@@ -242,7 +240,9 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       else type_error e "Mismatched array type"
   | NewArr (t, e1) ->
       (match t with
-      | TRegTy TBool | TRegTy TInt | TRegTy (TNullRef _) | TRegTy TThreadGroup -> ()
+      | TRegTy TBool | TRegTy TInt | TRegTy (TNullRef _) | TRegTy TThreadGroup
+        ->
+          ()
       | TLinTy _ -> type_error e "Arrays cannot contain linear types"
       | TRegTy (TRef _) ->
           type_error e
@@ -359,13 +359,13 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       | _ -> type_error e "Cannot send on non-channel type")
   | CRecvChan (annot_ty, exp) -> (
       let t, ctx = typecheck_exp c exp in
-      (match t with
+      match t with
       | TLinTy (TChan (ty, rm, _)) ->
-          if annot_ty <> ty then type_error e "Type annotations incorrect" else  
-          if rm = MNum 0 then
+          if annot_ty <> ty then type_error e "Type annotations incorrect"
+          else if rm = MNum 0 then
             type_error e "Cannot receive on channel type without reads"
           else (ty, ctx)
-      | _ -> type_error e "Cannot receive on non-channel type"))
+      | _ -> type_error e "Cannot receive on non-channel type")
   | CSpawn (exp1, args) ->
       (* Step 1: Check whether argument length matches, and arguments match types. Use the
        * same context for each fptr.
@@ -436,11 +436,11 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           (fun k _ l -> (k, TMoved) :: List.remove_assoc k l)
           lin_map c.lin_locals
       in
-      (TRegTy TThreadGroup , { c with lin_locals = new_local_lin_ctx })
+      (TRegTy TThreadGroup, { c with lin_locals = new_local_lin_ctx })
   | CJoin exp -> (
       let t, ctx = typecheck_exp c exp in
       match t with
-      | TRegTy TThreadGroup  -> (TRegTy TInt, ctx)
+      | TRegTy TThreadGroup -> (TRegTy TInt, ctx)
       | _ -> type_error exp "Cannot join on non-int handle")
 
 and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
@@ -677,7 +677,13 @@ let rec check_dups fs =
 
 let typecheck_tdecl (tc : Tctxt.t) id fs (l : 'a node) : unit =
   if check_dups fs then type_error l ("Repeated fields in " ^ id)
-  else List.iter (fun f -> typecheck_ty l tc f.ftyp) fs
+  else
+    List.iter
+      (fun f ->
+        match f.ftyp with
+        | TLinTy _ -> type_error l "Structs cannot contain linear types"
+        | _ -> typecheck_ty l tc f.ftyp)
+      fs
 
 (* function declarations ---------------------------------------------------- *)
 (* typecheck a function declaration 
