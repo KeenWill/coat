@@ -22,6 +22,12 @@ let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_7.oat"
 
 let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_8.oat"
 
+let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_9.oat"
+
+let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_10.oat"
+
+let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_11.oat"
+
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_1.oat";
   [%expect {| [2, 2] Linear types not consumed at end of block |}]
@@ -98,3 +104,15 @@ let%expect_test _ =
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_19.oat";
   [%expect {| [3, 4] Linear types not consumed at end of block |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_20.oat";
+  [%expect {| [5, 26] Usage of moved value |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_21.oat";
+  [%expect {| [5, 28] Usage of moved value |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_22.oat";
+  [%expect {| [5, 23] Usage of moved value |}]

@@ -1,0 +1,9 @@
+int program(int argc, string[] argv) {
+  var channel = makechan<int,1,0>();
+
+  if (recvchan<int>(channel) == 1) {
+    var x = recvchan<int>(channel);
+  } else {
+    var x = recvchan<int>(channel);
+  }
+}
