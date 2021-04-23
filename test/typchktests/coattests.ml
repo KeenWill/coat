@@ -51,7 +51,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_8.oat";
-  [%expect {|[4, 2] single-use channel possibly consumed multiple times|}]
+  [%expect {|[5, 14] Cannot receive on channel that has writes remaining|}]
 
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_9.oat";
@@ -84,3 +84,11 @@ let%expect_test _ =
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_16.oat";
   [%expect {| [5, 4] single-use channel possibly consumed multiple times |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_17.oat";
+  [%expect {| [5, 21] Unbound identifier channel |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_18.oat";
+  [%expect {| [3, 9] single-use channel possibly consumed multiple times |}]

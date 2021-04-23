@@ -498,11 +498,15 @@ let verify_arb_consumption (og_tc : Tctxt.t) (res_tc : Tctxt.t) (nd : 'a node) :
     unit =
   List.iter
     (fun (id, ty) ->
-      match ty with
-      | TMoved -> type_error nd "usage of moved linear value"
-      | TChan (_, rm, wm) ->
-          if rm = MNum 1 || wm = MNum 1 then
-            type_error nd "single-use channel possibly consumed multiple times")
+      match List.assoc_opt id res_tc.lin_locals with
+      | None | Some TMoved -> (
+          match ty with
+          | TMoved -> type_error nd "usage of moved linear value"
+          | TChan (_, rm, wm) ->
+              if rm = MNum 1 || wm = MNum 1 then
+                type_error nd
+                  "single-use channel possibly consumed multiple times" )
+      | _ -> ())
     og_tc.lin_locals
 
 let can_unconsumed (lty : lty) : bool =
@@ -513,6 +517,18 @@ let can_unconsumed (lty : lty) : bool =
   | TChan (_, MArb, MArb) ->
       true
   | _ -> false
+
+let diff_lin_tc (og_tc : Tctxt.t) (scoped_tc : Tctxt.t) : Tctxt.t =
+  {
+    og_tc with
+    lin_locals =
+      List.fold_left
+        (fun acc (id, ty) ->
+          match List.assoc_opt id scoped_tc.lin_locals with
+          | None | Some TMoved -> acc
+          | _ -> (id, ty) :: acc)
+        [] og_tc.lin_locals;
+  }
 
 let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
     Tctxt.t * bool =
@@ -585,7 +601,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
           type_error s
             "Both branches in an if-conditional has to consume the same \
              resources"
-        else ({ tc with lin_locals = ctx_b1.lin_locals }, lft_ret && rgt_ret)
+        else (diff_lin_tc tc ctx_b1, lft_ret && rgt_ret)
   | Cast (r, id, exp, b1, b2) -> (
       let exp_type, ctx1 = typecheck_exp tc exp in
       match exp_type with
@@ -599,17 +615,18 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
               type_error s
                 "Both branches in an if-conditional has to consume the same \
                  resources"
-            else ({ tc with lin_locals = ctx_b1.lin_locals }, lft_ret && rgt_ret)
+            else (diff_lin_tc tc ctx_b1, lft_ret && rgt_ret)
           else type_error exp "if? expression not a subtype of declared type"
       | _ -> type_error exp "if? expression has non-? type" )
   | While (b, bl) ->
       let guard_type, ctx1 = typecheck_exp tc b in
+      verify_arb_consumption tc ctx1 b;
       if guard_type <> TRegTy TBool then type_error b "Incorrect type for guard"
       else
         let res_ctx, _ = typecheck_block ctx1 bl to_ret in
         (* Check what res_ctx has consumed, and make sure they are MArb *)
         verify_arb_consumption ctx1 res_ctx (List.hd bl);
-        ({ tc with lin_locals = res_ctx.lin_locals }, false)
+        (diff_lin_tc tc res_ctx, false)
   | For (vs, guard, upd, b) ->
       let ctx1 =
         List.fold_left
@@ -646,7 +663,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       in
       let ctx4, _ = typecheck_block ctx3 b to_ret in
       verify_arb_consumption ctx3 ctx4 s;
-      ({ tc with lin_locals = ctx4.lin_locals }, false)
+      (diff_lin_tc tc ctx4, false)
 
 and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
     Tctxt.t * bool =
