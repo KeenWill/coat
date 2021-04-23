@@ -1,0 +1,9 @@
+struct BadStruct {
+  chan<int, *, *> c
+}
+
+
+int program(int argc, string[] argv) {
+
+  return 0;
+}

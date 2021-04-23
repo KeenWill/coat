@@ -1,0 +1,8 @@
+int program(int argc, string[] argv) {
+  var c1 = makechan<int, 1, 1>();
+  var c2 = makechan<int, 1, 1>();
+
+  var arr = new chan<int, 1, 1>[]{c1, c2};
+
+  return 0;
+}

@@ -1,0 +1,14 @@
+void test1(chan<int, 1, 0> c1, chan<int, 0, 1> c2) {
+  var res1 = recvchan<int>(c1);
+  var res2 = sendchan(c2, 10);
+  return;
+}
+
+int program(int argc, string[] argv) {
+  var c1 = makechan<int,1,1>();
+  var c2 = makechan<int,1,1>();
+
+  var tid = spawn([test1, test1], [(c1, c1), (c1, c2)]);
+
+  return 0;
+}

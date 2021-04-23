@@ -1,0 +1,10 @@
+int program(int argc, string[] argv) {
+  var channel = makechan<int,1,0>();
+  if (true) {
+    print_int(10);
+  }
+
+  var res = recvchan<int>(channel);
+
+  return 0;
+}

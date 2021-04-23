@@ -159,7 +159,7 @@ and typecheck_ref l tc (r : rty) : unit =
   | RStruct id -> (
       match Tctxt.lookup_struct_option id tc with
       | None -> type_error l "Unbound struct type"
-      | Some _ -> ())
+      | Some _ -> () )
   | RArray t ->
       if is_lin_ty t then type_error l "Arrays cannot contain linear types"
       else typecheck_ty l tc t
@@ -213,7 +213,7 @@ let rec coerce_chan_types (l : lty list) : (mult * mult) option =
   | TChan (_, rm, wm) :: tl -> (
       match coerce_chan_types tl with
       | Some (crm, cwm) -> Some (comb_mult crm rm, comb_mult cwm wm)
-      | _ -> None)
+      | _ -> None )
   | _ -> None
 
 let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
@@ -231,7 +231,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           | Some l ->
               let removed_ctx = List.remove_assoc i c.lin_locals in
               (TLinTy l, { c with lin_locals = (i, TMoved) :: removed_ctx })
-          | None -> type_error e ("Unbound identifier " ^ i)))
+          | None -> type_error e ("Unbound identifier " ^ i) ) )
   | CArr (t, l) ->
       typecheck_ty e c (TRegTy (TRef (RArray t)));
       let types_of, ctx = typecheck_exp_list c l in
@@ -239,14 +239,14 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
         (TRegTy (TRef (RArray t)), ctx)
       else type_error e "Mismatched array type"
   | NewArr (t, e1) ->
-      (match t with
+      ( match t with
       | TRegTy TBool | TRegTy TInt | TRegTy (TNullRef _) | TRegTy TThreadGroup
         ->
           ()
       | TLinTy _ -> type_error e "Arrays cannot contain linear types"
       | TRegTy (TRef _) ->
           type_error e
-            "Non-null types cannot be used with default-initialized arrays");
+            "Non-null types cannot be used with default-initialized arrays" );
       let size_type, ctx = typecheck_exp c e1 in
       if size_type = TRegTy TInt then (TRegTy (TRef (RArray t)), ctx)
       else type_error e "Array size not an int"
@@ -278,7 +278,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
           if bl = ltyp then
             if br = rtyp then (bres, new_ctxt2)
             else type_error r "Incorrect type in binary expression"
-          else type_error l "Incorrect type in binary expression")
+          else type_error l "Incorrect type in binary expression" )
   | Uop (u, e) ->
       let t, new_ctxt = typecheck_exp c e in
       let us, ures = typ_of_unop u in
@@ -300,8 +300,8 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       | TRegTy (TRef (RStruct sn)) -> (
           match Tctxt.lookup_field_option sn id c with
           | None -> type_error e (id ^ " not member of struct " ^ sn)
-          | Some t -> (t, new_ctxt))
-      | _ -> type_error s "Cannot project from non-struct")
+          | Some t -> (t, new_ctxt) )
+      | _ -> type_error s "Cannot project from non-struct" )
   | CStruct (id, l) -> (
       match Tctxt.lookup_struct_option id c with
       | None -> type_error e (id ^ "not a struct type")
@@ -324,12 +324,12 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
                 type_error e (id ^ " field of struct incorrect")
               else ())
             field_types;
-          (TRegTy (TRef (RStruct id)), ctx))
+          (TRegTy (TRef (RStruct id)), ctx) )
   | Length l -> (
       let t, new_ctxt = typecheck_exp c l in
       match t with
       | TRegTy (TRef (RArray _)) -> (TRegTy TInt, new_ctxt)
-      | _ -> type_error l "Cannot take length of non-array")
+      | _ -> type_error l "Cannot take length of non-array" )
   | Call (f, args) -> (
       let argtyps, ctx1 = typecheck_exp_list c args in
       match typecheck_exp ctx1 f with
@@ -343,7 +343,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
                   type_error e "Incorrect type of argument")
               argtyps l;
           (r, ctx2)
-      | _ -> type_error e "Need function argument for function call")
+      | _ -> type_error e "Need function argument for function call" )
   | CMakeChan (ty, rm, wm) ->
       typecheck_ty e c (TLinTy (TChan (ty, rm, wm)));
       (TLinTy (TChan (ty, rm, wm)), c)
@@ -351,21 +351,25 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       let chan_ty, ctx1 = typecheck_exp c exp1 in
       let send_ty, ctx2 = typecheck_exp ctx1 exp2 in
       match chan_ty with
-      | TLinTy (TChan (ty, _, wm)) ->
+      | TLinTy (TChan (ty, rm, wm)) ->
           if wm = MNum 0 then
             type_error e "Cannot send on channel type without sends"
+          else if rm = MNum 1 then
+            type_error e "Cannot send on channel that has reads remaining"
           else if subtype c send_ty ty then (TRegTy TInt, ctx2)
           else type_error e "Cannot send incompatible type"
-      | _ -> type_error e "Cannot send on non-channel type")
+      | _ -> type_error e "Cannot send on non-channel type" )
   | CRecvChan (annot_ty, exp) -> (
       let t, ctx = typecheck_exp c exp in
       match t with
-      | TLinTy (TChan (ty, rm, _)) ->
+      | TLinTy (TChan (ty, rm, wm)) ->
           if annot_ty <> ty then type_error e "Type annotations incorrect"
           else if rm = MNum 0 then
             type_error e "Cannot receive on channel type without reads"
+          else if wm = MNum 1 then
+            type_error e "Cannot receive on channel that has writes remaining"
           else (ty, ctx)
-      | _ -> type_error e "Cannot receive on non-channel type")
+      | _ -> type_error e "Cannot receive on non-channel type" )
   | CSpawn (exp1, args) ->
       (* Step 1: Check whether argument length matches, and arguments match types. Use the
        * same context for each fptr.
@@ -378,7 +382,8 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
         | fptr :: fptr_tl, args :: args_tl -> (
             let fptr_ty, ctx1 = typecheck_exp ctx fptr in
             let args_tys, _ =
-              typecheck_exp_list ctx1 (List.map (fun id -> no_loc (Id id)) args)
+              typecheck_exp_list ctx1
+                (List.map (fun id -> { elt = Id id; loc = e.loc }) args)
             in
             match fptr_ty with
             | TRegTy (TRef (RFun (l, RetVoid))) ->
@@ -386,14 +391,14 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
                     (l : ty list) (lin_map : lty list LinTyMap.t) =
                   match (args, args_id, l) with
                   | arg_ty :: args_tl, arg_id :: args_id_tl, l_ty :: l_tl ->
-                      (match (arg_ty, l_ty) with
+                      ( match (arg_ty, l_ty) with
                       | TLinTy (TChan (ty1, _, _)), TLinTy (TChan (ty2, _, _))
                         ->
                           if not (subtype c ty1 ty2) then
                             type_error fptr "spawn: argument type mismatch"
                       | _, _ ->
                           if not (subtype c arg_ty l_ty) then
-                            type_error fptr "spawn: argument type mismatch");
+                            type_error fptr "spawn: argument type mismatch" );
                       let new_map =
                         match l_ty with
                         | TLinTy lty ->
@@ -413,7 +418,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
                 typecheck_processes ctx new_map fptr_tl args_tl
             | _ ->
                 type_error fptr
-                  "spawn: cannot spawn process with non void function pointer")
+                  "spawn: cannot spawn process with non void function pointer" )
         | [], [] -> lin_map
         | _, _ ->
             type_error e "spawn: length of fptr list and args list do not match"
@@ -427,7 +432,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
               | TMoved -> type_error e "spawn: usage of moved linear value"
               | TChan (_, crm, cwm) ->
                   if rm = crm && wm = cwm then ()
-                  else type_error e "spawn: channel usage incorrect")
+                  else type_error e "spawn: channel usage incorrect" )
           | None -> type_error e "spawn: coercing chan types failed?")
         lin_map;
 
@@ -441,7 +446,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       let t, ctx = typecheck_exp c exp in
       match t with
       | TRegTy TThreadGroup -> (TRegTy TInt, ctx)
-      | _ -> type_error exp "Cannot join on non-int handle")
+      | _ -> type_error exp "Cannot join on non-thread group handle" )
 
 and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
   match el with
@@ -493,14 +498,41 @@ let verify_arb_consumption (og_tc : Tctxt.t) (res_tc : Tctxt.t) (nd : 'a node) :
     unit =
   List.iter
     (fun (id, ty) ->
-      if not (List.mem_assoc id res_tc.lin_locals) then
-        match ty with
-        | TMoved -> type_error nd "usage of moved linear value"
-        | TChan (_, rm, wm) ->
-            if rm = MNum 1 || wm = MNum 1 then
-              type_error nd
-                "single-use channel possibly consumed multiple times")
+      match List.assoc_opt id res_tc.lin_locals with
+      | None | Some TMoved -> (
+          match ty with
+          | TMoved -> ()
+          | TChan (_, rm, wm) ->
+              if rm = MNum 1 || wm = MNum 1 then
+                type_error nd
+                  "single-use channel possibly consumed multiple times" )
+      | _ -> ())
     og_tc.lin_locals
+
+let can_unconsumed (lty : lty) : bool =
+  match lty with
+  | TMoved
+  | TChan (_, MArb, MNum 0)
+  | TChan (_, MNum 0, MArb)
+  | TChan (_, MArb, MArb) ->
+      true
+  | _ -> false
+
+let diff_lin_tc (og_tc : Tctxt.local_lin_ctxt)
+    (scoped_tc : Tctxt.local_lin_ctxt) : Tctxt.local_lin_ctxt =
+  List.fold_left
+    (fun acc (id, ty) ->
+      match List.assoc_opt id scoped_tc with
+      | None | Some TMoved -> acc
+      | _ -> (id, ty) :: acc)
+    [] og_tc
+
+let check_cond_branches (og_tc : Tctxt.t) (tc1 : Tctxt.t) (tc2 : Tctxt.t) : bool
+    =
+  List.fold_left
+    (fun acc (id, _) ->
+      List.assoc id tc1.lin_locals = List.assoc id tc2.lin_locals && acc)
+    true og_tc.lin_locals
 
 let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
     Tctxt.t * bool =
@@ -518,7 +550,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
                     match lookup_global_option x tc with
                     | Some (TRef (RFun _)) ->
                         type_error s ("cannot assign to global function " ^ x)
-                    | _ -> ())))
+                    | _ -> () ) ) )
         | _ -> ()
       in
       let assn_to, ctx1 = typecheck_exp tc e1 in
@@ -527,7 +559,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       | _ ->
           let assn_from, ctx2 = typecheck_exp ctx1 e2 in
           if subtype tc assn_from assn_to then (ctx2, false)
-          else type_error s "Mismatched types in assignment")
+          else type_error s "Mismatched types in assignment" )
   | Decl (id, exp) -> (
       let exp_type, tc1 = typecheck_exp tc exp in
       if
@@ -537,7 +569,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       else
         match exp_type with
         | TLinTy lty -> (add_local_lin tc1 id lty, false)
-        | TRegTy regty -> (add_local_reg tc1 id regty, false))
+        | TRegTy regty -> (add_local_reg tc1 id regty, false) )
   | Ret r -> (
       match (r, to_ret) with
       | None, RetVoid -> (tc, true)
@@ -546,7 +578,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
           if subtype tc t to_ret then (tc', true)
           else type_error s "Returned incorrect type"
       | None, RetVal _ -> type_error s "Returned void in non-void function"
-      | Some _, RetVoid -> type_error s "Returned non-void in void function")
+      | Some _, RetVoid -> type_error s "Returned non-void in void function" )
   | SCall (f, args) -> (
       let argtyps, ctx1 = typecheck_exp_list tc args in
       let ftyp, ctx2 = typecheck_exp ctx1 f in
@@ -562,18 +594,23 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
                   type_error s "Incorrect type of argument")
               argtyps l;
           (ctx2, false)
-      | _ -> type_error s "Need function argument for function call")
+      | _ -> type_error s "Need function argument for function call" )
   | If (e, b1, b2) ->
       let guard_type, ctx1 = typecheck_exp tc e in
       if guard_type <> TRegTy TBool then type_error e "Incorrect type for guard"
       else
         let ctx_b1, lft_ret = typecheck_block ctx1 b1 to_ret in
         let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
-        if ctx_b1.lin_locals <> ctx_b2.lin_locals then
+        if not (check_cond_branches ctx1 ctx_b1 ctx_b2) then
           type_error s
             "Both branches in an if-conditional has to consume the same \
              resources"
-        else ({ tc with lin_locals = ctx_b1.lin_locals }, lft_ret && rgt_ret)
+        else
+          ( {
+              tc with
+              lin_locals = diff_lin_tc ctx1.lin_locals ctx_b1.lin_locals;
+            },
+            lft_ret && rgt_ret )
   | Cast (r, id, exp, b1, b2) -> (
       let exp_type, ctx1 = typecheck_exp tc exp in
       match exp_type with
@@ -583,21 +620,28 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
               typecheck_block (add_local_reg ctx1 id (TRef r)) b1 to_ret
             in
             let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
-            if ctx_b1.lin_locals <> ctx_b2.lin_locals then
+            if not (check_cond_branches ctx1 ctx_b1 ctx_b2) then
               type_error s
                 "Both branches in an if-conditional has to consume the same \
                  resources"
-            else ({ tc with lin_locals = ctx_b1.lin_locals }, lft_ret && rgt_ret)
+            else
+              ( {
+                  tc with
+                  lin_locals = diff_lin_tc ctx1.lin_locals ctx_b1.lin_locals;
+                },
+                lft_ret && rgt_ret )
           else type_error exp "if? expression not a subtype of declared type"
-      | _ -> type_error exp "if? expression has non-? type")
+      | _ -> type_error exp "if? expression has non-? type" )
   | While (b, bl) ->
       let guard_type, ctx1 = typecheck_exp tc b in
+      verify_arb_consumption tc ctx1 b;
       if guard_type <> TRegTy TBool then type_error b "Incorrect type for guard"
       else
         let res_ctx, _ = typecheck_block ctx1 bl to_ret in
         (* Check what res_ctx has consumed, and make sure they are MArb *)
         verify_arb_consumption ctx1 res_ctx (List.hd bl);
-        ({ tc with lin_locals = res_ctx.lin_locals }, false)
+        ( { tc with lin_locals = diff_lin_tc ctx1.lin_locals res_ctx.lin_locals },
+          false )
   | For (vs, guard, upd, b) ->
       let ctx1 =
         List.fold_left
@@ -634,7 +678,8 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       in
       let ctx4, _ = typecheck_block ctx3 b to_ret in
       verify_arb_consumption ctx3 ctx4 s;
-      ({ tc with lin_locals = ctx4.lin_locals }, false)
+      ( { tc with lin_locals = diff_lin_tc ctx3.lin_locals ctx4.lin_locals },
+        false )
 
 and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
     Tctxt.t * bool =
@@ -642,7 +687,7 @@ and typecheck_block (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
   (* Check that all linear types introduced in block are consumed *)
   List.iter
     (fun (id, ty) ->
-      if not (ty = TMoved) then
+      if not (can_unconsumed ty) then
         match List.assoc_opt id tc.lin_locals with
         | None ->
             type_error (List.hd b) "Linear types not consumed at end of block"
@@ -662,7 +707,7 @@ and typecheck_block_helper (tc : Tctxt.t) (b : block) (to_ret : ret_ty) :
   | h1 :: h2 :: t ->
       let new_context, r = typecheck_stmt tc h1 to_ret in
       if r then type_error h2 "Dead code"
-      else typecheck_block new_context (h2 :: t) to_ret
+      else typecheck_block_helper new_context (h2 :: t) to_ret
 
 (* struct type declarations ------------------------------------------------- *)
 (* Here is an example of how to implement the TYP_TDECLOK rule, which is 
@@ -696,19 +741,14 @@ let typecheck_fdecl (tc : Tctxt.t) (f : fdecl) (l : 'a node) : unit =
   let updated =
     List.fold_left
       (fun c (t, i) ->
+        typecheck_ty l tc t;
         match t with
         | TLinTy lty -> add_local_lin c i lty
         | TRegTy regty -> add_local_reg c i regty)
       tc f.args
   in
-  let ctx, returned = typecheck_block updated f.body f.frtyp in
+  let _, returned = typecheck_block updated f.body f.frtyp in
   if not returned then type_error l "Need return statement"
-  else
-    List.iter
-      (fun (_, ty) ->
-        if ty <> TMoved then
-          type_error l "Linear types not consumed at end of function")
-      ctx.lin_locals
 
 (* creating the typchecking context ----------------------------------------- *)
 
@@ -779,7 +819,7 @@ let create_global_ctxt (tc : Tctxt.t) (p : prog) : Tctxt.t =
           | TRegTy regty ->
               if List.exists (fun x -> fst x = decl.name) c.globals then
                 type_error l ("Redeclaration of " ^ decl.name)
-              else Tctxt.add_global c decl.name regty)
+              else Tctxt.add_global c decl.name regty )
       | _ -> c)
     tc p
 
