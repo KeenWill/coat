@@ -1,0 +1,13 @@
+void test1(chan<int, 1, 0> c) {
+  var res = recvchan<int>(c);
+  return;
+}
+
+
+int program(int argc, string[] argv) {
+  var channel = makechan<int,*,1>();
+
+  var tid = spawn([test1, test1], [(channel), (channel)]);
+
+  return 0;
+}
