@@ -1,0 +1,7 @@
+int program(int argc, string[] argv) {
+  while (true) {
+    var channel = makechan<int, 1, 0>();
+  }
+
+  return 0;
+}

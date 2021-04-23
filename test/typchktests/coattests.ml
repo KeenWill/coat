@@ -20,6 +20,8 @@ let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_6.oat"
 
 let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_7.oat"
 
+let%test _ = oat_tc_ok_test "test/coatprograms/tc_ok_8.oat"
+
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_1.oat";
   [%expect {| [2, 2] Linear types not consumed at end of block |}]
@@ -92,3 +94,7 @@ let%expect_test _ =
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_18.oat";
   [%expect {| [3, 9] single-use channel possibly consumed multiple times |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_19.oat";
+  [%expect {| [3, 4] Linear types not consumed at end of block |}]

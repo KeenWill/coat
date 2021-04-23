@@ -530,6 +530,13 @@ let diff_lin_tc (og_tc : Tctxt.t) (scoped_tc : Tctxt.t) : Tctxt.t =
         [] og_tc.lin_locals;
   }
 
+let check_cond_branches (og_tc : Tctxt.t) (tc1 : Tctxt.t) (tc2 : Tctxt.t) : bool
+    =
+  List.fold_left
+    (fun acc (id, _) ->
+      List.assoc id tc1.lin_locals = List.assoc id tc2.lin_locals && acc)
+    true og_tc.lin_locals
+
 let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
     Tctxt.t * bool =
   match s.elt with
@@ -597,7 +604,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
       else
         let ctx_b1, lft_ret = typecheck_block ctx1 b1 to_ret in
         let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
-        if ctx_b1.lin_locals <> ctx_b2.lin_locals then
+        if not (check_cond_branches ctx1 ctx_b1 ctx_b2) then
           type_error s
             "Both branches in an if-conditional has to consume the same \
              resources"
@@ -611,7 +618,7 @@ let rec typecheck_stmt (tc : Tctxt.t) (s : stmt node) (to_ret : ret_ty) :
               typecheck_block (add_local_reg ctx1 id (TRef r)) b1 to_ret
             in
             let ctx_b2, rgt_ret = typecheck_block ctx1 b2 to_ret in
-            if ctx_b1.lin_locals <> ctx_b2.lin_locals then
+            if not (check_cond_branches ctx1 ctx_b1 ctx_b2) then
               type_error s
                 "Both branches in an if-conditional has to consume the same \
                  resources"
@@ -731,14 +738,8 @@ let typecheck_fdecl (tc : Tctxt.t) (f : fdecl) (l : 'a node) : unit =
         | TRegTy regty -> add_local_reg c i regty)
       tc f.args
   in
-  let ctx, returned = typecheck_block updated f.body f.frtyp in
+  let _, returned = typecheck_block updated f.body f.frtyp in
   if not returned then type_error l "Need return statement"
-  else
-    List.iter
-      (fun (_, ty) ->
-        if not (can_unconsumed ty) then
-          type_error l "Linear types not consumed at end of function")
-      ctx.lin_locals
 
 (* creating the typchecking context ----------------------------------------- *)
 
