@@ -446,7 +446,7 @@ let rec typecheck_exp (c : Tctxt.t) (e : exp node) : ty * Tctxt.t =
       let t, ctx = typecheck_exp c exp in
       match t with
       | TRegTy TThreadGroup -> (TRegTy TInt, ctx)
-      | _ -> type_error exp "Cannot join on non-int handle" )
+      | _ -> type_error exp "Cannot join on non-thread group handle" )
 
 and typecheck_exp_list (c : Tctxt.t) (el : exp node list) : ty list * Tctxt.t =
   match el with

@@ -116,3 +116,11 @@ let%expect_test _ =
 let%expect_test _ =
   expect_coat_tc_err_test "test/coatprograms/tc_err_22.oat";
   [%expect {| [5, 23] Usage of moved value |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_23.oat";
+  [%expect {| [9, 19] spawn: argument type mismatch |}]
+
+let%expect_test _ =
+  expect_coat_tc_err_test "test/coatprograms/tc_err_24.oat";
+  [%expect {| [10, 17] Cannot join on non-thread group handle |}]

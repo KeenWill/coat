@@ -1,0 +1,12 @@
+void test(chan<int, *, *> c) {
+  return;
+}
+
+int program(int argc, string[] argv) {
+  var channel = makechan<int,*,*>();
+  var x = 10;
+
+  var tid = spawn([test, test], [(x), (channel)]);
+
+  return 0;
+}
